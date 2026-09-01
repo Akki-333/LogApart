@@ -8,9 +8,9 @@ import {
   Wrench, 
   ShieldCheck, 
   LogOut,
-  Bell,
   Menu
 } from 'lucide-react';
+import NotificationDropdown from '../components/common/NotificationDropdown';
 
 export default function DashboardLayout() {
   const { user, logout } = useContext(AuthContext);
@@ -68,8 +68,8 @@ export default function DashboardLayout() {
               {user?.name?.charAt(0) || 'A'}
             </div>
             <div>
-              <p className="text-sm font-medium text-white">{user?.name || 'Admin User'}</p>
-              <p className="text-xs text-slate-400 capitalize">{user?.role?.replace('_', ' ') || 'Role'}</p>
+              <p className="text-sm font-medium text-white">{user?.name || 'Building Admin'}</p>
+              <p className="text-xs text-slate-400 font-medium">{user?.role === 'SUPER_ADMIN' ? 'Admin' : (user?.role?.replace('_', ' ') || 'Admin')}</p>
             </div>
           </div>
           <button 
@@ -93,10 +93,7 @@ export default function DashboardLayout() {
             <h1 className="text-xl font-semibold text-slate-800">Overview</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="relative p-2 text-slate-400 hover:text-slate-600 transition-colors">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
-            </button>
+            <NotificationDropdown />
           </div>
         </header>
 
