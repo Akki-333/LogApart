@@ -30,12 +30,7 @@ const GuardRoute = ({ children }) => {
   return children;
 };
 
-const DashboardHome = () => (
-  <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-8">
-    <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome back, Admin!</h2>
-    <p className="text-slate-600">This is the Phase 1 dashboard layout. The foundation is solid.</p>
-  </div>
-);
+import DashboardHome from './pages/DashboardHome';
 
 function AppRoutes() {
   return (

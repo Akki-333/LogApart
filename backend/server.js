@@ -19,12 +19,16 @@ const authRoutes = require('./src/routes/authRoutes');
 const unitRoutes = require('./src/routes/unitRoutes');
 const ticketRoutes = require('./src/routes/ticketRoutes');
 const securityRoutes = require('./src/routes/securityRoutes');
+const dashboardRoutes = require('./src/routes/dashboardRoutes');
+const notificationRoutes = require('./src/routes/notificationRoutes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/units', unitRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/security', securityRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 const PORT = process.env.PORT || 5000;
 

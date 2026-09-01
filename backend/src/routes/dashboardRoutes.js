@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const unitController = require('../controllers/unitController');
+const dashboardController = require('../controllers/dashboardController');
 const jwt = require('jsonwebtoken');
 
 const protect = (req, res, next) => {
@@ -19,9 +19,6 @@ const protect = (req, res, next) => {
   }
 };
 
-router.get('/', protect, unitController.getUnits);
-router.post('/assign', protect, unitController.assignResident);
-router.put('/:unit_id/resident', protect, unitController.updateResident);
-router.post('/vacate', protect, unitController.vacateUnit);
+router.get('/stats', protect, dashboardController.getDashboardStats);
 
 module.exports = router;
