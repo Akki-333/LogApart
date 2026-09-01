@@ -3,6 +3,8 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { ShieldAlert, LogOut, User } from 'lucide-react';
 
+import NotificationDropdown from '../components/common/NotificationDropdown';
+
 export default function GuardLayout() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -17,29 +19,31 @@ export default function GuardLayout() {
       {/* Top Header */}
       <header className="h-20 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-8 shadow-md">
         <div className="flex items-center">
-          <ShieldAlert className="h-10 w-10 text-teal-500 mr-4" />
+          <ShieldAlert className="h-9 w-9 text-teal-400 mr-3.5" />
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-widest uppercase">Security Portal</h1>
-            <p className="text-sm text-slate-400 font-medium">LogApart Main Gate</p>
+            <h1 className="text-xl font-bold text-white tracking-wide">Main Gate Security</h1>
+            <p className="text-xs text-slate-400 font-medium">LogApart Community Desk</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-6">
-          <div className="hidden sm:flex items-center text-right">
+        <div className="flex items-center gap-5">
+          <NotificationDropdown />
+
+          <div className="hidden sm:flex items-center text-right border-l border-slate-800 pl-5">
             <div>
-              <p className="text-lg font-bold text-white">{user?.name || 'Gate Guard'}</p>
-              <p className="text-sm text-teal-400">On Duty</p>
+              <p className="text-sm font-bold text-white">{user?.name || 'Security'}</p>
+              <p className="text-xs text-teal-400 font-semibold">On Duty</p>
             </div>
-            <div className="ml-4 p-3 bg-slate-800 rounded-full">
-              <User className="h-6 w-6 text-slate-300" />
+            <div className="ml-3.5 p-2 bg-slate-800 rounded-xl">
+              <User className="h-5 w-5 text-slate-300" />
             </div>
           </div>
           
           <button 
             onClick={handleLogout}
-            className="flex items-center px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-colors shadow-lg"
+            className="flex items-center px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md"
           >
-            <LogOut className="h-5 w-5 mr-2" />
+            <LogOut className="h-4 w-4 mr-1.5" />
             Sign Out
           </button>
         </div>
