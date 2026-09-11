@@ -5,17 +5,25 @@ const { createNotification } = require('./notificationController');
 exports.getVisitorLogs = async (req, res) => {
   try {
     const query = `
-      SELECT 
+      SELECT
         v.id, v.visitor_name, v.visitor_phone, v.vehicle_number, v.vehicle_type,
         v.purpose, v.company, v.status, v.entry_time, v.exit_time, v.unit_id,
+        v.pass_code, v.expected_on,
         u.number as unit_number, u.floor as unit_floor,
-        usr.name as logged_by
+        usr.name as logged_by,
+        resident.name as pre_approved_by
       FROM visitor_logs v
       JOIN units u ON v.unit_id = u.id
-      JOIN users usr ON v.logged_by_id = usr.id
-      ORDER BY 
-        CASE WHEN v.status = 'ENTERED' THEN 1 ELSE 2 END, 
-        v.entry_time DESC
+      LEFT JOIN users usr ON v.logged_by_id = usr.id
+      LEFT JOIN users resident ON v.created_by_id = resident.id
+      WHERE v.status <> 'DENIED'
+      ORDER BY
+        CASE
+          WHEN v.status = 'ENTERED' THEN 1
+          WHEN v.status = 'APPROVED' AND v.expected_on >= CURDATE() THEN 2
+          ELSE 3
+        END,
+        COALESCE(v.entry_time, v.expected_on) DESC, v.id DESC
     `;
     
     const [rows] = await db.execute(query);
@@ -36,10 +44,12 @@ exports.logVisitor = async (req, res) => {
   }
 
   try {
+    // entry_time is set explicitly: it lost its column default when pre-approved
+    // passes arrived, since a pass exists before anyone walks through the gate.
     const query = `
-      INSERT INTO visitor_logs 
-      (visitor_name, visitor_phone, vehicle_number, vehicle_type, unit_id, purpose, company, status, logged_by_id) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'ENTERED', ?)
+      INSERT INTO visitor_logs
+      (visitor_name, visitor_phone, vehicle_number, vehicle_type, unit_id, purpose, company, status, logged_by_id, entry_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'ENTERED', ?, CURRENT_TIMESTAMP)
     `;
     
     await db.execute(query, [
@@ -148,5 +158,98 @@ exports.deleteVisitor = async (req, res) => {
   } catch (error) {
     console.error('Error deleting visitor log:', error);
     res.status(500).json({ success: false, message: 'Server error deleting visitor log' });
+  }
+};
+
+/**
+ * 6. Look up a pre-approved visitor by the code their host gave them.
+ * The guard types six characters instead of ringing the flat.
+ */
+exports.findPass = async (req, res) => {
+  const code = String(req.query.code || '').trim().toUpperCase();
+
+  if (code.length < 4) {
+    return res.status(400).json({ success: false, message: 'Enter the full gate code.' });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT v.id, v.visitor_name, v.visitor_phone, v.vehicle_number, v.purpose,
+              v.pass_code, v.expected_on, v.status, v.entry_time,
+              u.number AS unit_number, u.floor AS unit_floor,
+              resident.name AS pre_approved_by
+       FROM visitor_logs v
+       JOIN units u ON v.unit_id = u.id
+       LEFT JOIN users resident ON v.created_by_id = resident.id
+       WHERE v.pass_code = ?`,
+      [code]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'No pass matches that code.' });
+    }
+
+    const pass = rows[0];
+
+    if (pass.status === 'DENIED') {
+      return res.status(409).json({ success: false, message: 'That pass was cancelled by the resident.' });
+    }
+
+    if (pass.entry_time) {
+      return res.status(409).json({ success: false, message: 'That pass has already been used.' });
+    }
+
+    res.json({ success: true, data: pass });
+  } catch (error) {
+    console.error('Error finding pass:', error);
+    res.status(500).json({ success: false, message: 'Server error looking up that pass' });
+  }
+};
+
+/** 7. Admit a pre-approved visitor, turning the pass into a live entry. */
+exports.admitPass = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT v.id, v.visitor_name, v.status, v.entry_time, v.purpose, v.company, u.number AS unit_number
+       FROM visitor_logs v JOIN units u ON v.unit_id = u.id
+       WHERE v.id = ? AND v.pass_code IS NOT NULL`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Pass not found.' });
+    }
+
+    const pass = rows[0];
+
+    if (pass.status === 'DENIED') {
+      return res.status(409).json({ success: false, message: 'That pass was cancelled by the resident.' });
+    }
+
+    if (pass.entry_time) {
+      return res.status(409).json({ success: false, message: 'That visitor is already inside.' });
+    }
+
+    await db.execute(
+      `UPDATE visitor_logs
+       SET status = 'ENTERED', entry_time = CURRENT_TIMESTAMP,
+           logged_by_id = ?, vehicle_type = IFNULL(?, vehicle_type), vehicle_number = IFNULL(?, vehicle_number)
+       WHERE id = ?`,
+      [req.user.id, req.body.vehicle_type || null, req.body.vehicle_number || null, id]
+    );
+
+    createNotification({
+      title: `Gate Entry • Flat ${pass.unit_number}`,
+      message: `${pass.visitor_name} entered on a pre-approved pass.`,
+      target_role: 'ADMIN',
+      type: 'GATE'
+    });
+
+    res.json({ success: true, message: `${pass.visitor_name} admitted.` });
+  } catch (error) {
+    console.error('Error admitting pass:', error);
+    res.status(500).json({ success: false, message: 'Server error admitting that visitor' });
   }
 };

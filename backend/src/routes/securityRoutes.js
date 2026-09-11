@@ -9,6 +9,10 @@ const { requireRole } = require('../middleware/auth');
 // read-only admin gate view and stops the portal interfering with live tracking.
 router.get('/visitors', requireRole('ADMIN', 'SECURITY'), securityController.getVisitorLogs);
 
+// Pre-approved passes raised by residents.
+router.get('/passes/lookup', requireRole('SECURITY'), securityController.findPass);
+router.put('/passes/:id/admit', requireRole('SECURITY'), securityController.admitPass);
+
 router.post('/visitors', requireRole('SECURITY'), securityController.logVisitor);
 router.put('/visitors/:id', requireRole('SECURITY'), securityController.updateVisitor);
 router.put('/visitors/:id/checkout', requireRole('SECURITY'), securityController.checkoutVisitor);
