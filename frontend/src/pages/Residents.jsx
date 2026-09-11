@@ -103,6 +103,7 @@ export default function Residents() {
       // keeps the password they already have.
       if (response.data.temp_password) {
         setNewCredentials({
+          heading: 'Resident account created',
           name: formData.name,
           email: formData.email,
           password: response.data.temp_password
@@ -112,6 +113,36 @@ export default function Residents() {
       fetchUnits();
     } catch (err) {
       alert(err.response?.data?.message || 'Error assigning resident');
+    }
+  };
+
+  // A resident who forgets their password has no other way back in, so the
+  // admin issues a new one-time password and the reason goes into the log.
+  const handleReissuePassword = async (unit) => {
+    const reason = window.prompt(
+      `Why is a new password being issued for flat ${unit.number}? This ends every session on that account.`
+    );
+    if (reason === null) return;
+
+    if (reason.trim().length < 4) {
+      alert('Record a short reason before re-issuing a password.');
+      return;
+    }
+
+    try {
+      const response = await api.post(`/api/units/${unit.unit_id || unit.id}/resident/password`, {
+        reason: reason.trim()
+      });
+
+      const issued = response.data.data;
+      setNewCredentials({
+        heading: 'New one-time password issued',
+        name: issued.resident_name,
+        email: issued.email,
+        password: issued.temp_password
+      });
+    } catch (err) {
+      alert(err.response?.data?.message || 'Could not re-issue that password');
     }
   };
 
@@ -351,6 +382,7 @@ export default function Residents() {
         onOnboard={handleOpenOnboard}
         onEdit={handleOpenEdit}
         onVacate={handleOpenVacate}
+        onReissuePassword={handleReissuePassword}
       />
 
       <OnboardResidentModal

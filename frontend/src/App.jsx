@@ -13,6 +13,7 @@ import Residents from './pages/Residents';
 import Maintenance from './pages/Maintenance';
 import Billing from './pages/Billing';
 import Community from './pages/Community';
+import Activity from './pages/Activity';
 import Security from './pages/Security';
 import ResidentHome from './pages/resident/ResidentHome';
 import ResidentDues from './pages/resident/ResidentDues';
@@ -75,6 +76,7 @@ function AppRoutes() {
         <Route path="billing" element={<Billing />} />
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="community" element={<Community />} />
+        <Route path="activity" element={<Activity />} />
         {/* Read-only by design; the API refuses gate writes from an admin. */}
         <Route path="security" element={<Security readOnly={true} />} />
       </Route>

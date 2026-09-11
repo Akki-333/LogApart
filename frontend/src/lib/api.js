@@ -28,8 +28,19 @@ api.interceptors.response.use(
     const isLoginAttempt = error.config?.url?.includes('/api/auth/login');
 
     // An expired or revoked token should not leave the user on a dead screen.
+    // The server says why it ended the session, so carry that to the sign-in
+    // screen rather than dumping them there with no explanation.
     if (status === 401 && !isLoginAttempt && localStorage.getItem('token')) {
+      const reason = error.response?.data?.message;
+
       localStorage.removeItem('token');
+
+      try {
+        if (reason) sessionStorage.setItem('logapart:signed-out-reason', reason);
+      } catch {
+        // A browser refusing session storage is not worth failing the redirect.
+      }
+
       window.location.assign('/');
     }
 

@@ -8,7 +8,8 @@
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js",
     "db:setup": "node db/migrate.js && node db/seed.js",
-    "verify:tickets": "node scripts/verify-ticket-scope-and-reads.js"
+    "verify:tickets": "node scripts/verify-ticket-scope-and-reads.js",
+    "verify:trust": "node scripts/verify-trust-and-audit.js"
   },
   "keywords": [],
   "author": "",

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { X, KeyRound, Copy, Check, AlertTriangle } from 'lucide-react';
 
 /**
- * Shown once, right after onboarding. The password is never stored in plain
- * text, so if the admin closes this without noting it down the only route back
- * is a reset.
+ * Shown once, after onboarding or after a password is re-issued. The password
+ * is never stored in plain text, so if the admin closes this without noting it
+ * down the only route back is another re-issue.
  */
 export default function TempPasswordDialog({ credentials, onClose }) {
   const [copied, setCopied] = useState(false);
@@ -32,7 +32,9 @@ export default function TempPasswordDialog({ credentials, onClose }) {
               <KeyRound className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-800">Resident account created</h2>
+              <h2 className="text-base font-bold text-slate-800">
+                {credentials.heading || 'Resident account created'}
+              </h2>
               <p className="text-xs text-slate-500">Pass these details on to {credentials.name}</p>
             </div>
           </div>

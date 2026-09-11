@@ -10,7 +10,7 @@ verified. Nothing here adds a runtime dependency except where stated.
 
 ---
 
-## Phase 4 — Trust, safety and accountability
+## Phase 4 — Trust, safety and accountability (done, 2026-09-12)
 
 The system already decides who owes what and who may enter the building. It does
 so today with no record of who changed anything, no defence against a
@@ -61,10 +61,12 @@ so controllers stop hand-rolling checks, and a single error handler that logs
 against a request id instead of scattered `console.error` calls. Raise the
 minimum password length and reject the obvious choices.
 
-**Verification.** Lockout triggers and releases. A token issued before a
-`token_version` bump is refused. Every audited action writes exactly one row with
-the right before and after. A deleted gate log leaves the desk but survives in
-the audit view. A re-issued password forces a change.
+**Verified.** `npm run verify:trust`, 52 checks, all passing. Lockout triggers
+and releases, and a throttled attempt is not counted so the lock cannot be held
+open by a third party. A token issued before a `token_version` bump is refused.
+Every audited action writes exactly one row with the right before and after. A
+removed gate log leaves the desk but survives in the building record. A re-issued
+password forces a change and ends every session on the account.
 
 ---
 

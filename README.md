@@ -114,6 +114,8 @@ and each route declares the roles it accepts.
 | `GET /api/security/visitors` | ✅ | ✅ | ❌ |
 | Gate writes: log, edit, checkout, delete | ❌ | ✅ | ❌ |
 | `GET /api/notifications` | ✅ | ✅ | ✅ |
+| `GET /api/audit` activity trail | ✅ | ❌ | ❌ |
+| Re-issue a resident one-time password | ✅ | ❌ | ❌ |
 | `/api/auth/me`, `/api/auth/change-password` | ✅ | ✅ | ✅ |
 
 Admin gate access is read-only on purpose, so the portal cannot interfere with
@@ -127,6 +129,48 @@ returned once to the admin as `temp_password` so it can be passed on. The accoun
 is flagged `must_change_password`, and until it is replaced the API answers every
 request outside `/api/auth` with `403 PASSWORD_CHANGE_REQUIRED`. The app routes
 those users to the change-password screen and nowhere else.
+
+---
+
+## 🔒 Trust and accountability
+
+Three things were true of the system until Phase 4, and all three are now closed.
+
+**Nobody counted sign-in attempts.** Twenty resident accounts sat behind an
+unlimited number of guesses. Failures since an account last signed in
+successfully now lock it on a widening ladder, five minutes at first and an hour
+once someone is clearly grinding, and enough failures from one address lock that
+address across every account. A throttled attempt is deliberately not counted,
+because a lock that any passer-by could extend forever is a way to shut a
+neighbour out rather than a defence.
+
+**A token outlived the permission it carried.** The role rode inside a JWT valid
+for a day, and nothing re-read the account, so demoting an admin or moving a
+resident out changed nothing until it expired. Every account carries a token
+version that the token repeats back, and a mismatch ends the session on the next
+request. Changing a password bumps it, which signs out everyone else holding the
+old one. Moving out bumps it and closes the account when the person has no other
+flat. Role and password state are read from the row, so a change lands
+immediately rather than tomorrow.
+
+**Nothing was audited.** A guard could delete the record that someone was in the
+building. An admin could withdraw a month of dues, waive a balance on a clearance
+certificate, and record a payment that never arrived. Each of those now writes an
+`audit_log` row holding the actor, the action, what it looked like before and
+after, and the address it came from, inside the same transaction as the act
+itself. The Activity screen reads it back, paged by id so nothing shifts under a
+reader, and the API offers no way to write to it.
+
+A gate record is no longer destroyed. Removing one needs a stated reason, takes
+it off the desk, and leaves it in the building record with who withdrew it and
+why.
+
+### Password recovery
+
+Onboarding used to be the only thing that ever issued a password, so a resident
+who forgot theirs was locked out for good. An admin can now re-issue a one-time
+password from the flat panel. It needs a reason, ends every session on the
+account, forces a change at the next sign-in, and lands in the activity log.
 
 ---
 
@@ -270,6 +314,10 @@ addressed to them rather than only the twenty most recent.
 - **Phase 2 — Resident portal (done).** Own dues and payment history, raising
   and tracking structural issues, gate activity for your own flat, and
   pre-approved visitor passes redeemed at the guard desk.
+- **Phase 4 — Trust and accountability (done).** Throttled sign-in, revocable
+  tokens, an audit trail behind money and access, gate records withdrawn rather
+  than destroyed, admin-issued password recovery, security headers, a body cap
+  and one request validator. Verified by `npm run verify:trust`.
 - **Phase 3 — Daily community value (done).** A daily helper registry with
   one-tap gate check-in, notices as a real module replacing the hardcoded banner,
   parking bays with repeat-offender tracking, and staff attendance driving

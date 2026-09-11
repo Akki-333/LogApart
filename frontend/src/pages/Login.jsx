@@ -9,7 +9,17 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    // Set by the API client when it ended a dead session, so the screen can say
+    // whether the password changed, the account closed, or the day simply ran out.
+    try {
+      const reason = sessionStorage.getItem('logapart:signed-out-reason');
+      if (reason) sessionStorage.removeItem('logapart:signed-out-reason');
+      return reason || '';
+    } catch {
+      return '';
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   // Someone arriving with a live session should not sit on the login screen.

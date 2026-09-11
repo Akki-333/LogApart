@@ -9,6 +9,7 @@ import {
   ShieldCheck, 
   Wallet,
   Users2,
+  ScrollText,
   LogOut,
   Menu
 } from 'lucide-react';
@@ -30,6 +31,7 @@ export default function DashboardLayout() {
     { name: 'Maintenance', icon: Wrench, path: '/admin/maintenance' },
     { name: 'Community', icon: Users2, path: '/admin/community' },
     { name: 'Security', icon: ShieldCheck, path: '/admin/security' },
+    { name: 'Activity', icon: ScrollText, path: '/admin/activity' },
   ];
 
   return (
