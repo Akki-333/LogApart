@@ -27,6 +27,10 @@ router.post(
   residentController.declarePayment
 );
 
+// Bills, receipts, clearance certificates and notices, gathered rather than
+// stored again.
+router.get('/documents', residentOnly, residentController.getDocuments);
+
 router.get('/tickets', residentOnly, residentController.getTickets);
 router.post('/tickets', residentOnly, residentController.createTicket);
 router.get('/visitors', residentOnly, residentController.getVisitorLogs);

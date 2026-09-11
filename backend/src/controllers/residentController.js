@@ -474,3 +474,61 @@ exports.getDeclarations = withUnit(async (req, res, unit) => {
 
   res.json({ success: true, data: rows.map((row) => ({ ...row, amount: Number(row.amount) })) });
 });
+
+/**
+ * 11. The document vault.
+ *
+ * Nothing new is stored here. Bills, receipts, clearance certificates and the
+ * notices addressed to the flat already exist in four different tables, and a
+ * resident who wants last March's receipt should not have to remember which
+ * screen it was on.
+ */
+exports.getDocuments = withUnit(async (req, res, unit) => {
+  const [invoices] = await db.execute(
+    `SELECT id, period_month, total_amount, amount_paid, due_date, status
+     FROM invoices WHERE unit_id = ? ORDER BY period_month DESC LIMIT 36`,
+    [unit.unit_id]
+  );
+
+  const [receipts] = await db.execute(
+    `SELECT p.receipt_number, p.amount, p.mode, p.reference, p.paid_on, i.period_month
+     FROM payment_records p
+     JOIN invoices i ON p.invoice_id = i.id
+     WHERE i.unit_id = ? AND p.receipt_number IS NOT NULL
+     ORDER BY p.paid_on DESC LIMIT 60`,
+    [unit.unit_id]
+  );
+
+  // Certificates are keyed on the person as well as the flat, so a previous
+  // tenant's clearance never turns up in the current resident's vault.
+  const [certificates] = await db.execute(
+    `SELECT certificate_number, move_out_date, outstanding_at_issue, dues_waived, waiver_reason
+     FROM noc_certificates WHERE unit_id = ? AND resident_user_id = ?
+     ORDER BY move_out_date DESC`,
+    [unit.unit_id, req.user.id]
+  );
+
+  const [notices] = await db.execute(
+    `SELECT id, title, body, starts_on, ends_on, created_at
+     FROM notices
+     WHERE audience IN ('ALL', 'RESIDENT') AND is_published = 1
+     ORDER BY starts_on DESC LIMIT 30`
+  );
+
+  res.json({
+    success: true,
+    data: {
+      unit,
+      invoices: invoices.map((row) => ({
+        ...row,
+        total_amount: Number(row.total_amount),
+        amount_paid: Number(row.amount_paid),
+        balance: toRupees(toPaise(row.total_amount) - toPaise(row.amount_paid)),
+        display_status: displayStatus(row)
+      })),
+      receipts: receipts.map((row) => ({ ...row, amount: Number(row.amount) })),
+      certificates: certificates.map((row) => ({ ...row, outstanding_at_issue: Number(row.outstanding_at_issue) })),
+      notices
+    }
+  });
+});

@@ -1,7 +1,10 @@
 import { useContext } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Building2, Home, LogOut, KeyRound, Wallet, Wrench, ShieldCheck, Megaphone } from 'lucide-react';
+import {
+  Building2, Home, LogOut, KeyRound, Wallet, Wrench, ShieldCheck, Megaphone,
+  CalendarDays, Vote, Users, FolderOpen, Siren
+} from 'lucide-react';
 import NotificationDropdown from '../components/common/NotificationDropdown';
 
 export default function ResidentLayout() {
@@ -18,7 +21,12 @@ export default function ResidentLayout() {
     { name: 'My Dues', icon: Wallet, path: '/resident/dues' },
     { name: 'Issues', icon: Wrench, path: '/resident/issues' },
     { name: 'My Gate', icon: ShieldCheck, path: '/resident/gate' },
-    { name: 'Notices', icon: Megaphone, path: '/resident/notices' }
+    { name: 'Notices', icon: Megaphone, path: '/resident/notices' },
+    { name: 'Book', icon: CalendarDays, path: '/resident/amenities' },
+    { name: 'Decisions', icon: Vote, path: '/resident/polls' },
+    { name: 'Household', icon: Users, path: '/resident/household' },
+    { name: 'Papers', icon: FolderOpen, path: '/resident/documents' },
+    { name: 'Help', icon: Siren, path: '/resident/help' }
   ];
 
   return (

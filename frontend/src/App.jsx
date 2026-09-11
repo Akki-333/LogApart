@@ -21,6 +21,11 @@ import ResidentDues from './pages/resident/ResidentDues';
 import ResidentIssues from './pages/resident/ResidentIssues';
 import ResidentGate from './pages/resident/ResidentGate';
 import ResidentNotices from './pages/resident/ResidentNotices';
+import ResidentAmenities from './pages/resident/ResidentAmenities';
+import ResidentHousehold from './pages/resident/ResidentHousehold';
+import ResidentPolls from './pages/resident/ResidentPolls';
+import ResidentDocuments from './pages/resident/ResidentDocuments';
+import ResidentEmergency from './pages/resident/ResidentEmergency';
 
 const Spinner = ({ dark = false }) => (
   <div className={`h-screen flex items-center justify-center ${dark ? 'bg-slate-900' : 'bg-slate-50'}`}>
@@ -103,6 +108,11 @@ function AppRoutes() {
         <Route path="issues" element={<ResidentIssues />} />
         <Route path="gate" element={<ResidentGate />} />
         <Route path="notices" element={<ResidentNotices />} />
+        <Route path="amenities" element={<ResidentAmenities />} />
+        <Route path="household" element={<ResidentHousehold />} />
+        <Route path="polls" element={<ResidentPolls />} />
+        <Route path="documents" element={<ResidentDocuments />} />
+        <Route path="help" element={<ResidentEmergency />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
