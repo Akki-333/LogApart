@@ -5,6 +5,7 @@ import LogVisitorModal from '../components/security/LogVisitorModal';
 import EditVisitorModal from '../components/security/EditVisitorModal';
 import PassLookup from '../components/security/PassLookup';
 import HelperCheckIn from '../components/security/HelperCheckIn';
+import ParcelDesk from '../components/security/ParcelDesk';
 import { 
   ShieldCheck, 
   UserCheck, 
@@ -214,6 +215,8 @@ export default function Security({ readOnly = false }) {
           }}
         />
       )}
+
+      <ParcelDesk units={units} readOnly={readOnly} dark={!readOnly} />
 
       {banner && (
         <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">

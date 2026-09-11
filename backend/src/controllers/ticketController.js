@@ -14,6 +14,8 @@ const TICKET_SELECT = `
   SELECT
     t.id, t.title, t.description, t.category, t.priority, t.status,
     t.scope, t.location, t.unit_id, t.created_at, t.resolved_at, t.raised_by_resident,
+    t.rating, t.rating_note, t.reopen_count,
+    (SELECT COUNT(*) FROM ticket_comments c WHERE c.ticket_id = t.id) AS comment_count,
     u.number AS unit_number,
     usr.name AS reported_by,
     assignee.name AS assigned_to

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../lib/api';
+import TicketConversation from '../../components/tickets/TicketConversation';
 import { formatDay } from '../../lib/money';
 import { Wrench, Plus, X, CheckCircle2, Clock, AlertCircle, Info, Building2, Home } from 'lucide-react';
 
@@ -29,6 +30,7 @@ export default function ResidentIssues() {
   const [form, setForm] = useState({ scope: 'COMMON', location: '', title: '', description: '', category: 'PLUMBING' });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [openTicket, setOpenTicket] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -147,6 +149,23 @@ export default function ResidentIssues() {
                 </div>
                 {ticket.status === 'RESOLVED' && <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />}
               </div>
+
+              <button
+                onClick={() => setOpenTicket(openTicket === ticket.id ? null : ticket.id)}
+                className="mt-3 text-xs font-bold text-teal-700 hover:text-teal-900"
+              >
+                {openTicket === ticket.id ? 'Hide the conversation' : 'Open the conversation'}
+              </button>
+
+              {openTicket === ticket.id && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <TicketConversation
+                    ticketId={ticket.id}
+                    canRate={ticket.raised_by_me}
+                    onChanged={load}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

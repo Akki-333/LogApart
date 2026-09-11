@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import api from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import TicketKanban from '../components/maintenance/TicketKanban';
+import TicketConversation from '../components/tickets/TicketConversation';
 import NewTicketModal from '../components/maintenance/NewTicketModal';
 import { Plus } from 'lucide-react';
 
@@ -11,6 +12,7 @@ export default function Maintenance() {
   const [units, setUnits] = useState([]); // Needed for the dropdown in modal
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [openTicket, setOpenTicket] = useState(null);
 
   useEffect(() => {
     fetchTickets();
@@ -90,12 +92,35 @@ export default function Maintenance() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
           </div>
         ) : (
-          <TicketKanban 
-            tickets={tickets} 
-            onUpdateStatus={handleUpdateStatus} 
+          <TicketKanban
+            tickets={tickets}
+            onUpdateStatus={handleUpdateStatus}
+            onOpenTicket={setOpenTicket}
           />
         )}
       </div>
+
+      {openTicket && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
+            <div className="flex justify-between items-start px-6 py-5 border-b border-slate-100 bg-slate-50">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">{openTicket.title}</h2>
+                <p className="text-xs text-slate-500">{openTicket.place || openTicket.location}</p>
+              </div>
+              <button
+                onClick={() => setOpenTicket(null)}
+                className="text-slate-400 hover:text-slate-700 font-bold"
+              >
+                Close
+              </button>
+            </div>
+            <div className="p-6 max-h-[70vh] overflow-y-auto">
+              <TicketConversation ticketId={openTicket.id} onChanged={fetchTickets} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <NewTicketModal 
         isOpen={isModalOpen} 

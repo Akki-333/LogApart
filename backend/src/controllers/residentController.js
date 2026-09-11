@@ -200,6 +200,8 @@ exports.getTickets = withUnit(async (req, res, unit) => {
   const [rows] = await db.execute(
     `SELECT t.id, t.title, t.description, t.category, t.priority, t.status,
             t.scope, t.location, t.unit_id, t.created_at, t.resolved_at, t.raised_by_resident,
+            t.rating, t.reopen_count, t.created_by_id,
+            (SELECT COUNT(*) FROM ticket_comments c WHERE c.ticket_id = t.id) AS comment_count,
             usr.name AS reported_by, assignee.name AS assigned_to
      FROM maintenance_tickets t
      JOIN users usr ON t.created_by_id = usr.id
@@ -214,7 +216,10 @@ exports.getTickets = withUnit(async (req, res, unit) => {
     data: rows.map((row) => ({
       ...row,
       place: row.scope === 'COMMON' ? row.location || 'Common area' : `Flat ${unit.number}`,
-      is_mine: row.scope !== 'COMMON'
+      is_mine: row.scope !== 'COMMON',
+      // Rating and reopening belong to whoever raised it, which is not the same
+      // thing as the flat it was raised against.
+      raised_by_me: row.created_by_id === req.user.id
     }))
   });
 });

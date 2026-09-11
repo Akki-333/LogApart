@@ -1,6 +1,6 @@
 import { Clock, AlertCircle, Building2, Home } from 'lucide-react';
 
-export default function TicketKanban({ tickets, onUpdateStatus }) {
+export default function TicketKanban({ tickets, onUpdateStatus, onOpenTicket }) {
   if (!tickets) return null;
 
   const columns = [
@@ -81,7 +81,26 @@ export default function TicketKanban({ tickets, onUpdateStatus }) {
                     </div>
                     
                     <h4 className="font-bold text-slate-800 text-sm mb-1">{ticket.title}</h4>
-                    <p className="text-slate-500 text-xs line-clamp-2 mb-4">{ticket.description}</p>
+                    <p className="text-slate-500 text-xs line-clamp-2 mb-3">{ticket.description}</p>
+
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <button
+                        onClick={() => onOpenTicket(ticket)}
+                        className="text-xs font-bold text-teal-700 hover:text-teal-900"
+                      >
+                        Open the conversation
+                      </button>
+                      {ticket.reopen_count > 0 && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                          reopened {ticket.reopen_count}x
+                        </span>
+                      )}
+                      {ticket.rating && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          rated {ticket.rating}/5
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
                       {getSLA(ticket.priority, ticket.created_at, ticket.status)}
