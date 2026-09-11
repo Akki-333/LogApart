@@ -1,14 +1,24 @@
 const jwt = require('jsonwebtoken');
+const db = require('../config/db');
 
 // Roles that may administer the building. The users.role enum carries both,
 // and the seeded admin account uses 'ADMIN'.
 const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN'];
 
 /**
- * Verifies the bearer token and attaches the decoded payload to req.user.
- * Authentication only. Use requireRole for authorisation.
+ * Verifies the bearer token, then re-reads the account behind it.
+ *
+ * The second half is the point. A JWT lives a day and used to be the only
+ * source of truth for the caller's role, so demoting an admin, closing an
+ * account or vacating a flat changed nothing until the token expired. The
+ * token now carries a version, the account carries the same counter, and a
+ * mismatch ends the session immediately. Role and password state are taken
+ * from the row rather than the token for the same reason.
+ *
+ * That costs one primary-key lookup per request, which is the right trade at a
+ * building's scale for permissions that can actually be withdrawn.
  */
-const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
   const header = req.headers.authorization || '';
 
   if (!header.startsWith('Bearer ')) {
@@ -21,11 +31,54 @@ const protect = (req, res, next) => {
     return res.status(401).json({ success: false, message: 'Not authorized, no token' });
   }
 
+  let claims;
+
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    claims = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      'SELECT id, name, role, must_change_password, token_version, is_active FROM users WHERE id = ?',
+      [claims.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, code: 'ACCOUNT_GONE', message: 'That account no longer exists.' });
+    }
+
+    const account = rows[0];
+
+    if (!account.is_active) {
+      return res.status(401).json({
+        success: false,
+        code: 'ACCOUNT_DISABLED',
+        message: 'This account has been closed. Speak to the building admin.'
+      });
+    }
+
+    if (Number(claims.tv) !== Number(account.token_version)) {
+      return res.status(401).json({
+        success: false,
+        code: 'SESSION_REVOKED',
+        message: 'This session has ended. Sign in again.'
+      });
+    }
+
+    req.user = {
+      id: account.id,
+      name: account.name,
+      role: account.role,
+      must_change_password: Boolean(account.must_change_password),
+      token_version: account.token_version
+    };
+
     next();
   } catch (error) {
-    res.status(401).json({ success: false, message: 'Not authorized, token failed' });
+    console.error('Auth lookup failed:', error);
+    res.status(500).json({ success: false, message: 'Server error verifying your session' });
   }
 };
 

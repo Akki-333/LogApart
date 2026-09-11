@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { createNotification } = require('./notificationController');
+const { recordAudit } = require('../services/audit');
 
 // 1. Get all visitor logs
 exports.getVisitorLogs = async (req, res) => {
@@ -16,7 +17,7 @@ exports.getVisitorLogs = async (req, res) => {
       JOIN units u ON v.unit_id = u.id
       LEFT JOIN users usr ON v.logged_by_id = usr.id
       LEFT JOIN users resident ON v.created_by_id = resident.id
-      WHERE v.status <> 'DENIED'
+      WHERE v.status <> 'DENIED' AND v.deleted_at IS NULL
       ORDER BY
         CASE
           WHEN v.status = 'ENTERED' THEN 1
@@ -88,6 +89,15 @@ exports.updateVisitor = async (req, res) => {
   const { visitor_name, visitor_phone, vehicle_number, vehicle_type, unit_id, purpose, company } = req.body;
 
   try {
+    const [existing] = await db.execute(
+      'SELECT * FROM visitor_logs WHERE id = ? AND deleted_at IS NULL',
+      [id]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'That gate record no longer exists.' });
+    }
+
     const query = `
       UPDATE visitor_logs 
       SET 
@@ -111,6 +121,17 @@ exports.updateVisitor = async (req, res) => {
       company !== undefined ? company : null,
       id
     ]);
+
+    const [updated] = await db.execute('SELECT * FROM visitor_logs WHERE id = ?', [id]);
+
+    await recordAudit(req, {
+      action: 'EDIT_GATE_LOG',
+      entity: 'visitor_logs',
+      entity_id: id,
+      summary: `Edited the gate record for ${existing[0].visitor_name}`,
+      before: existing[0],
+      after: updated[0]
+    });
 
     res.json({ success: true, message: 'Visitor entry updated successfully' });
   } catch (error) {
@@ -148,16 +169,52 @@ exports.checkoutVisitor = async (req, res) => {
   }
 };
 
-// 5. Delete a visitor entry
+// 5. Withdraw a visitor entry from the desk.
+//
+// This used to be a hard DELETE. A gate record is evidence of who was in the
+// building, so it now leaves the desk and stays in the audit trail, and the
+// guard has to say why.
 exports.deleteVisitor = async (req, res) => {
   const { id } = req.params;
+  const reason = String(req.body?.reason || '').trim();
+
+  if (reason.length < 4) {
+    return res.status(400).json({
+      success: false,
+      message: 'Say why this gate record is being removed.'
+    });
+  }
 
   try {
-    await db.execute('DELETE FROM visitor_logs WHERE id = ?', [id]);
-    res.json({ success: true, message: 'Visitor entry deleted' });
+    const [rows] = await db.execute(
+      'SELECT * FROM visitor_logs WHERE id = ? AND deleted_at IS NULL',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'That gate record no longer exists.' });
+    }
+
+    await db.execute(
+      `UPDATE visitor_logs
+       SET deleted_at = CURRENT_TIMESTAMP, deleted_by_id = ?, delete_reason = ?
+       WHERE id = ?`,
+      [req.user.id, reason.slice(0, 255), id]
+    );
+
+    await recordAudit(req, {
+      action: 'DELETE_GATE_LOG',
+      entity: 'visitor_logs',
+      entity_id: id,
+      summary: `Removed the gate record for ${rows[0].visitor_name}: ${reason}`,
+      before: rows[0],
+      after: null
+    });
+
+    res.json({ success: true, message: 'Visitor entry removed from the desk.' });
   } catch (error) {
-    console.error('Error deleting visitor log:', error);
-    res.status(500).json({ success: false, message: 'Server error deleting visitor log' });
+    console.error('Error removing visitor log:', error);
+    res.status(500).json({ success: false, message: 'Server error removing visitor log' });
   }
 };
 
@@ -181,7 +238,7 @@ exports.findPass = async (req, res) => {
        FROM visitor_logs v
        JOIN units u ON v.unit_id = u.id
        LEFT JOIN users resident ON v.created_by_id = resident.id
-       WHERE v.pass_code = ?`,
+       WHERE v.pass_code = ? AND v.deleted_at IS NULL`,
       [code]
     );
 
@@ -214,7 +271,7 @@ exports.admitPass = async (req, res) => {
     const [rows] = await db.execute(
       `SELECT v.id, v.visitor_name, v.status, v.entry_time, v.purpose, v.company, u.number AS unit_number
        FROM visitor_logs v JOIN units u ON v.unit_id = u.id
-       WHERE v.id = ? AND v.pass_code IS NOT NULL`,
+       WHERE v.id = ? AND v.pass_code IS NOT NULL AND v.deleted_at IS NULL`,
       [id]
     );
 

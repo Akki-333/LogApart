@@ -82,7 +82,7 @@ exports.getSummary = withUnit(async (req, res, unit) => {
   const [visitors] = await db.execute(
     `SELECT id, visitor_name, purpose, company, status, entry_time, exit_time
      FROM visitor_logs
-     WHERE unit_id = ? AND entry_time IS NOT NULL
+     WHERE unit_id = ? AND entry_time IS NOT NULL AND deleted_at IS NULL
      ORDER BY entry_time DESC
      LIMIT 5`,
     [unit.unit_id]
@@ -91,7 +91,8 @@ exports.getSummary = withUnit(async (req, res, unit) => {
   const [passes] = await db.execute(
     `SELECT id, visitor_name, pass_code, expected_on, purpose
      FROM visitor_logs
-     WHERE unit_id = ? AND status = 'APPROVED' AND pass_code IS NOT NULL AND expected_on >= CURDATE()
+     WHERE unit_id = ? AND status = 'APPROVED' AND pass_code IS NOT NULL
+       AND expected_on >= CURDATE() AND deleted_at IS NULL
      ORDER BY expected_on ASC`,
     [unit.unit_id]
   );
@@ -239,7 +240,7 @@ exports.getVisitorLogs = withUnit(async (req, res, unit) => {
     `SELECT id, visitor_name, visitor_phone, vehicle_number, vehicle_type,
             purpose, company, status, entry_time, exit_time, pass_code, expected_on
      FROM visitor_logs
-     WHERE unit_id = ?
+     WHERE unit_id = ? AND deleted_at IS NULL
      ORDER BY COALESCE(entry_time, expected_on) DESC, id DESC
      LIMIT 100`,
     [unit.unit_id]
@@ -254,7 +255,7 @@ exports.getPasses = withUnit(async (req, res, unit) => {
     `SELECT id, visitor_name, visitor_phone, purpose, vehicle_number, pass_code,
             expected_on, status, entry_time
      FROM visitor_logs
-     WHERE unit_id = ? AND pass_code IS NOT NULL
+     WHERE unit_id = ? AND pass_code IS NOT NULL AND deleted_at IS NULL
      ORDER BY expected_on DESC, id DESC
      LIMIT 50`,
     [unit.unit_id]
@@ -330,7 +331,7 @@ exports.createPass = withUnit(async (req, res, unit) => {
 /** 8. Cancel a pass, allowed only while the visitor has not arrived. */
 exports.cancelPass = withUnit(async (req, res, unit) => {
   const [rows] = await db.execute(
-    'SELECT id, status, entry_time FROM visitor_logs WHERE id = ? AND unit_id = ? AND pass_code IS NOT NULL',
+    'SELECT id, status, entry_time FROM visitor_logs WHERE id = ? AND unit_id = ? AND pass_code IS NOT NULL AND deleted_at IS NULL',
     [req.params.id, unit.unit_id]
   );
 

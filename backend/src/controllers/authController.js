@@ -1,8 +1,18 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const { checkLock, recordAttempt, describeWait } = require('../services/loginGuard');
+const { recordAudit, clientIp } = require('../services/audit');
 
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 10;
+
+// Not a password policy so much as a floor. These are what people actually
+// choose when a building hands them an account and asks them to pick something.
+const REFUSED_PASSWORDS = new Set([
+  'password', 'password1', 'password123', 'passw0rd1', '1234567890',
+  '123456789', 'qwertyuiop', 'letmein123', 'welcome123', 'iloveyou1',
+  'admin12345', 'apartment1', 'logapart11'
+]);
 
 const signToken = (user) =>
   jwt.sign(
@@ -10,7 +20,10 @@ const signToken = (user) =>
       id: user.id,
       role: user.role,
       name: user.name,
-      must_change_password: Boolean(user.must_change_password)
+      must_change_password: Boolean(user.must_change_password),
+      // Compared against the account on every request, so bumping the counter
+      // ends every session already signed in.
+      tv: Number(user.token_version || 0)
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
@@ -18,15 +31,34 @@ const signToken = (user) =>
 
 exports.login = async (req, res) => {
   const { email, password } = req.body;
+  const ip = clientIp(req);
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Please provide email and password' });
   }
 
-  try {
-    const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [email]);
+  // One spelling of the address, so attempts against the same account always
+  // land in the same bucket. The column collation is case-insensitive anyway.
+  const address = String(email).trim().toLowerCase();
 
+  try {
+    const lock = await checkLock(address, ip);
+
+    if (lock.locked) {
+      return res.status(429).json({
+        success: false,
+        code: 'TOO_MANY_ATTEMPTS',
+        message: `Too many failed sign-in attempts. Try again in ${describeWait(lock.retryAfterSeconds)}.`,
+        retry_after_seconds: lock.retryAfterSeconds
+      });
+    }
+
+    const [rows] = await db.execute('SELECT * FROM users WHERE email = ?', [address]);
+
+    // The same answer whether the address is unknown or the password is wrong,
+    // so the form cannot be used to find out who lives here.
     if (rows.length === 0) {
+      await recordAttempt(address, ip, false);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -34,8 +66,20 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
+      await recordAttempt(address, ip, false);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    if (!user.is_active) {
+      await recordAttempt(address, ip, false);
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_DISABLED',
+        message: 'This account has been closed. Speak to the building admin.'
+      });
+    }
+
+    await recordAttempt(address, ip, true);
 
     const token = signToken(user);
     delete user.password;
@@ -92,6 +136,13 @@ exports.changePassword = async (req, res) => {
     return res.status(400).json({ success: false, message: 'New password must be different from the current one.' });
   }
 
+  if (REFUSED_PASSWORDS.has(new_password.toLowerCase())) {
+    return res.status(400).json({
+      success: false,
+      message: 'That password is one of the first things anyone would try. Pick another.'
+    });
+  }
+
   try {
     const [rows] = await db.execute('SELECT * FROM users WHERE id = ?', [req.user.id]);
 
@@ -107,13 +158,26 @@ exports.changePassword = async (req, res) => {
     }
 
     const hash = await bcrypt.hash(new_password, 10);
+
+    // Bumping the version ends every other session signed in as this person,
+    // which is the whole point of changing a password you think someone else has.
     await db.execute(
-      'UPDATE users SET password = ?, must_change_password = 0 WHERE id = ?',
+      'UPDATE users SET password = ?, must_change_password = 0, token_version = token_version + 1 WHERE id = ?',
       [hash, user.id]
     );
 
-    // The old token still carries must_change_password, so hand back a fresh one.
-    const token = signToken({ ...user, must_change_password: 0 });
+    const nextVersion = Number(user.token_version || 0) + 1;
+
+    await recordAudit(req, {
+      action: 'CHANGE_PASSWORD',
+      entity: 'users',
+      entity_id: user.id,
+      summary: `${user.name} changed their own password`
+    });
+
+    // The old token carries the stale password flag and the stale version, so
+    // hand back a fresh one or the caller locks themselves out.
+    const token = signToken({ ...user, must_change_password: 0, token_version: nextVersion });
     delete user.password;
 
     res.json({

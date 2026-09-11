@@ -99,13 +99,22 @@ export default function Security({ readOnly = false }) {
     }
   };
 
+  // The record is withdrawn from the desk rather than destroyed, so the reason
+  // is not a formality: it is the only explanation the audit trail will carry.
   const handleDeleteVisitor = async (visitorId) => {
-    if (!window.confirm("Are you sure you want to remove this gate entry? This cannot be undone.")) return;
+    const reason = window.prompt('Why is this gate entry being removed? It stays in the building record.');
+    if (reason === null) return;
+
+    if (reason.trim().length < 4) {
+      alert('Give a short reason before removing a gate entry.');
+      return;
+    }
+
     try {
-      await api.delete(`/api/security/visitors/${visitorId}`);
+      await api.delete(`/api/security/visitors/${visitorId}`, { data: { reason: reason.trim() } });
       fetchVisitors();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error deleting visitor entry');
+      alert(error.response?.data?.message || 'Error removing visitor entry');
     }
   };
 
@@ -433,7 +442,7 @@ export default function Security({ readOnly = false }) {
                           </button>
                           <button
                             onClick={() => handleDeleteVisitor(v.id)}
-                            title="Delete Entry"
+                            title="Remove Entry"
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />

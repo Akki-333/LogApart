@@ -19,7 +19,7 @@ exports.getDashboardStats = async (req, res) => {
         COUNT(*) as total_today,
         SUM(CASE WHEN status = 'ENTERED' THEN 1 ELSE 0 END) as currently_inside
       FROM visitor_logs
-      WHERE DATE(entry_time) = CURRENT_DATE()
+      WHERE DATE(entry_time) = CURRENT_DATE() AND deleted_at IS NULL
     `);
 
     // 3. Ticket Stats
@@ -40,7 +40,7 @@ exports.getDashboardStats = async (req, res) => {
         u.number as unit_number
       FROM visitor_logs v
       JOIN units u ON v.unit_id = u.id
-      WHERE v.status = 'ENTERED'
+      WHERE v.status = 'ENTERED' AND v.deleted_at IS NULL
       ORDER BY v.entry_time DESC
       LIMIT 4
     `);
