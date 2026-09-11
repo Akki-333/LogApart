@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { createNotification } = require('./notificationController');
+const { isAdminRole } = require('../middleware/auth');
 
 /**
  * Maintenance tickets cover the building's structure and its shared parts.
@@ -136,3 +137,216 @@ exports.createTicket = async (req, res) => {
 };
 
 exports.placeOf = placeOf;
+
+/**
+ * Comments, a rating and a reopen window.
+ *
+ * A resident used to report an issue and hear nothing until it closed, which
+ * made "resolved" a claim rather than an agreement. Resolution now has to
+ * survive contact with the person who reported it.
+ */
+const REOPEN_WINDOW_DAYS = 7;
+
+const activeUnitFor = async (userId) => {
+  const [rows] = await db.execute(
+    'SELECT unit_id FROM residents WHERE user_id = ? AND is_active = true LIMIT 1',
+    [userId]
+  );
+
+  return rows[0]?.unit_id || null;
+};
+
+/**
+ * The ticket, if this caller is allowed to see it. An admin sees every ticket.
+ * A resident sees their own flat's and every common-area one, which is the same
+ * rule their ticket list already follows.
+ */
+const readableTicket = async (req, ticketId) => {
+  const [rows] = await db.execute('SELECT * FROM maintenance_tickets WHERE id = ?', [ticketId]);
+
+  if (rows.length === 0) return null;
+
+  const ticket = rows[0];
+
+  if (isAdminRole(req.user.role)) return ticket;
+
+  const unitId = await activeUnitFor(req.user.id);
+
+  if (ticket.scope === 'COMMON') return ticket;
+  if (unitId && ticket.unit_id === unitId) return ticket;
+
+  return null;
+};
+
+exports.getComments = async (req, res) => {
+  try {
+    const ticket = await readableTicket(req, req.params.id);
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'No such issue.' });
+    }
+
+    const [rows] = await db.execute(
+      `SELECT c.id, c.body, c.created_at, usr.name AS author, usr.role AS author_role
+       FROM ticket_comments c
+       JOIN users usr ON c.author_id = usr.id
+       WHERE c.ticket_id = ?
+       ORDER BY c.created_at ASC`,
+      [req.params.id]
+    );
+
+    res.json({
+      success: true,
+      data: rows,
+      ticket: {
+        id: ticket.id,
+        status: ticket.status,
+        rating: ticket.rating,
+        rating_note: ticket.rating_note,
+        reopen_count: ticket.reopen_count,
+        can_reopen: ticket.status === 'RESOLVED' || ticket.status === 'CLOSED'
+      }
+    });
+  } catch (error) {
+    console.error('Error reading comments:', error);
+    res.status(500).json({ success: false, message: 'Server error reading that conversation' });
+  }
+};
+
+exports.addComment = async (req, res) => {
+  const body = String(req.body?.body || '').trim();
+
+  if (body.length < 2) {
+    return res.status(400).json({ success: false, message: 'Write something before sending.' });
+  }
+
+  try {
+    const ticket = await readableTicket(req, req.params.id);
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'No such issue.' });
+    }
+
+    await db.execute(
+      'INSERT INTO ticket_comments (ticket_id, author_id, body) VALUES (?, ?, ?)',
+      [req.params.id, req.user.id, body.slice(0, 1000)]
+    );
+
+    // The other side of the conversation is told. An admin comment reaches the
+    // resident who raised it, and a resident comment reaches the admins.
+    if (isAdminRole(req.user.role)) {
+      if (ticket.created_by_id) {
+        await createNotification({
+          title: `Update on "${ticket.title}"`,
+          message: body.slice(0, 160),
+          target_role: 'RESIDENT',
+          target_user_id: ticket.created_by_id,
+          type: 'MAINTENANCE'
+        });
+      }
+    } else {
+      await createNotification({
+        title: `Reply on "${ticket.title}"`,
+        message: body.slice(0, 160),
+        target_role: 'ADMIN',
+        type: 'MAINTENANCE'
+      });
+    }
+
+    res.json({ success: true, message: 'Sent.' });
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    res.status(500).json({ success: false, message: 'Server error sending that' });
+  }
+};
+
+/** The resident who raised it says whether the fix held. */
+exports.rateTicket = async (req, res) => {
+  const rating = Number(req.body?.rating);
+
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return res.status(400).json({ success: false, message: 'Rate the fix from one to five.' });
+  }
+
+  try {
+    const ticket = await readableTicket(req, req.params.id);
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'No such issue.' });
+    }
+
+    if (ticket.created_by_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Only whoever reported it can rate the fix.' });
+    }
+
+    if (!['RESOLVED', 'CLOSED'].includes(ticket.status)) {
+      return res.status(409).json({ success: false, message: 'Rate it once the work is done.' });
+    }
+
+    await db.execute(
+      'UPDATE maintenance_tickets SET rating = ?, rating_note = ? WHERE id = ?',
+      [rating, String(req.body?.note || '').trim().slice(0, 255) || null, req.params.id]
+    );
+
+    res.json({ success: true, message: 'Thank you. That is on the record.' });
+  } catch (error) {
+    console.error('Error rating ticket:', error);
+    res.status(500).json({ success: false, message: 'Server error recording that rating' });
+  }
+};
+
+/** Reopening, within a week of the work being called done. */
+exports.reopenTicket = async (req, res) => {
+  const reason = String(req.body?.reason || '').trim();
+
+  if (reason.length < 4) {
+    return res.status(400).json({ success: false, message: 'Say what is still wrong.' });
+  }
+
+  try {
+    const ticket = await readableTicket(req, req.params.id);
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, message: 'No such issue.' });
+    }
+
+    if (!['RESOLVED', 'CLOSED'].includes(ticket.status)) {
+      return res.status(409).json({ success: false, message: 'That issue is already open.' });
+    }
+
+    const resolvedAt = ticket.resolved_at ? new Date(ticket.resolved_at) : null;
+    const daysSince = resolvedAt ? Math.floor((Date.now() - resolvedAt.getTime()) / 86400000) : 0;
+
+    if (daysSince > REOPEN_WINDOW_DAYS) {
+      return res.status(409).json({
+        success: false,
+        message: `That was closed ${daysSince} days ago. Raise it as a new issue instead.`
+      });
+    }
+
+    await db.execute(
+      `UPDATE maintenance_tickets
+       SET status = 'OPEN', resolved_at = NULL, reopened_at = CURRENT_TIMESTAMP,
+           reopen_count = reopen_count + 1
+       WHERE id = ?`,
+      [req.params.id]
+    );
+
+    await db.execute(
+      'INSERT INTO ticket_comments (ticket_id, author_id, body) VALUES (?, ?, ?)',
+      [req.params.id, req.user.id, `Reopened: ${reason}`]
+    );
+
+    await createNotification({
+      title: `Reopened: ${ticket.title}`,
+      message: reason.slice(0, 160),
+      target_role: 'ADMIN',
+      type: 'MAINTENANCE'
+    });
+
+    res.json({ success: true, message: 'Reopened. The building has been told.' });
+  } catch (error) {
+    console.error('Error reopening ticket:', error);
+    res.status(500).json({ success: false, message: 'Server error reopening that issue' });
+  }
+};

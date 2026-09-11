@@ -36,6 +36,11 @@ const parkingRoutes = require('./src/routes/parkingRoutes');
 const staffRoutes = require('./src/routes/staffRoutes');
 const auditRoutes = require('./src/routes/auditRoutes');
 const financeRoutes = require('./src/routes/financeRoutes');
+const amenityRoutes = require('./src/routes/amenityRoutes');
+const householdRoutes = require('./src/routes/householdRoutes');
+const pollRoutes = require('./src/routes/pollRoutes');
+const parcelRoutes = require('./src/routes/parcelRoutes');
+const emergencyRoutes = require('./src/routes/emergencyRoutes');
 
 const { protect, requirePasswordSet } = require('./src/middleware/auth');
 
@@ -57,6 +62,11 @@ app.use('/api/parking', guarded, parkingRoutes);
 app.use('/api/staff', guarded, staffRoutes);
 app.use('/api/audit', guarded, auditRoutes);
 app.use('/api/finance', guarded, financeRoutes);
+app.use('/api/amenities', guarded, amenityRoutes);
+app.use('/api/household', guarded, householdRoutes);
+app.use('/api/polls', guarded, pollRoutes);
+app.use('/api/parcels', guarded, parcelRoutes);
+app.use('/api/emergency', guarded, emergencyRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

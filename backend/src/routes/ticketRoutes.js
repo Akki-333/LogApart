@@ -11,4 +11,13 @@ router.get('/', requireRole('ADMIN'), ticketController.getTickets);
 router.post('/', requireRole('ADMIN'), ticketController.createTicket);
 router.put('/:id', requireRole('ADMIN'), ticketController.updateTicketStatus);
 
+// The conversation on a ticket. An admin sees every one, a resident sees their
+// own flat's and every common-area issue, and the handler enforces that.
+const bothSides = requireRole('ADMIN', 'RESIDENT');
+
+router.get('/:id/comments', bothSides, ticketController.getComments);
+router.post('/:id/comments', bothSides, ticketController.addComment);
+router.post('/:id/rating', requireRole('RESIDENT'), ticketController.rateTicket);
+router.post('/:id/reopen', requireRole('RESIDENT'), ticketController.reopenTicket);
+
 module.exports = router;
