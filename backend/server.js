@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const { loadEnv } = require('./src/config/env');
 
 const config = loadEnv();
@@ -7,9 +8,13 @@ const config = loadEnv();
 const app = express();
 
 // Middleware
+app.use(helmet());
 app.use(cors({ origin: config.corsOrigin, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// Nothing this API accepts is large. A visitor name, an invoice, a notice body.
+// A cap keeps a single request from being an easy way to exhaust memory.
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Health check
 app.get('/', (req, res) => {
@@ -53,6 +58,32 @@ app.use('/api/audit', guarded, auditRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
+});
+
+/**
+ * The last stop. Express 5 forwards a rejected async handler here, so a bug in
+ * a controller returns a clean 500 instead of a hung request. The reference is
+ * printed alongside the stack, which is how a report of "it said error 4f2a1c"
+ * turns into a line in the log.
+ */
+app.use((error, req, res, next) => {
+  const reference = Math.random().toString(16).slice(2, 8);
+
+  if (error.type === 'entity.too.large') {
+    return res.status(413).json({ success: false, message: 'That request was too large.' });
+  }
+
+  console.error(`[${reference}] ${req.method} ${req.originalUrl}`, error);
+
+  if (res.headersSent) {
+    return next(error);
+  }
+
+  res.status(500).json({
+    success: false,
+    message: 'Something went wrong at our end.',
+    reference
+  });
 });
 
 app.listen(config.port, () => {

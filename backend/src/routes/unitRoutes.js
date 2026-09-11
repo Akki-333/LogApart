@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const unitController = require('../controllers/unitController');
 const { requireRole } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 
 // Mounted behind protect + requirePasswordSet in server.js, so req.user is set here.
 
@@ -15,6 +16,11 @@ router.get('/:unit_id/dues', requireRole('ADMIN'), unitController.getUnitDues);
 router.post('/vacate', requireRole('ADMIN'), unitController.vacateUnit);
 
 // The only password recovery path there is, so it is admin-issued and audited.
-router.post('/:unit_id/resident/password', requireRole('ADMIN'), unitController.reissuePassword);
+router.post(
+  '/:unit_id/resident/password',
+  requireRole('ADMIN'),
+  validate({ reason: { required: true, type: 'string', minLength: 4, maxLength: 255, label: 'Reason' } }),
+  unitController.reissuePassword
+);
 
 module.exports = router;
