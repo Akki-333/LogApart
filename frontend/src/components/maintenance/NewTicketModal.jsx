@@ -1,21 +1,35 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Home, Building2 } from 'lucide-react';
+
+const EMPTY = {
+  scope: 'COMMON',
+  unit_id: '',
+  location: '',
+  title: '',
+  description: '',
+  category: 'Plumbing',
+  priority: 'MEDIUM'
+};
+
+// Common examples first: the lift, the pump and the hallway lights are what a
+// structural ticket system is actually for.
+const COMMON_PLACES = ['Lift A', 'Lift B', 'Stairwell', 'Terrace', 'Basement pump room', 'Car park', 'Main gate', 'Overhead tank'];
 
 export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
-  const [formData, setFormData] = useState({
-    unit_id: '',
-    title: '',
-    description: '',
-    category: 'Plumbing',
-    priority: 'MEDIUM'
-  });
+  const [formData, setFormData] = useState(EMPTY);
 
   if (!isOpen) return null;
 
+  const isCommon = formData.scope === 'COMMON';
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
-    setFormData({ unit_id: '', title: '', description: '', category: 'Plumbing', priority: 'MEDIUM' });
+    onSubmit({
+      ...formData,
+      unit_id: isCommon ? null : formData.unit_id,
+      location: isCommon ? formData.location : null
+    });
+    setFormData(EMPTY);
   };
 
   return (
@@ -30,18 +44,62 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Affected Unit / Area</label>
-            <select
-              required
-              value={formData.unit_id}
-              onChange={(e) => setFormData({...formData, unit_id: e.target.value})}
-              className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm"
-            >
-              <option value="">Select Unit</option>
-              {units?.map(unit => (
-                <option key={unit.unit_id} value={unit.unit_id}>Flat {unit.number}</option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">What does this affect?</label>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, scope: 'COMMON' })}
+                className={`flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-bold border transition-colors ${
+                  isCommon ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400'
+                }`}
+              >
+                <Building2 className="w-4 h-4 mr-2" />
+                Common area
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, scope: 'UNIT' })}
+                className={`flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-bold border transition-colors ${
+                  !isCommon ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400'
+                }`}
+              >
+                <Home className="w-4 h-4 mr-2" />
+                One flat
+              </button>
+            </div>
+
+            {isCommon ? (
+              <>
+                <input
+                  required
+                  type="text"
+                  maxLength={100}
+                  list="common-places"
+                  placeholder="Where is it? e.g. Lift A"
+                  value={formData.location}
+                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm"
+                />
+                <datalist id="common-places">
+                  {COMMON_PLACES.map((place) => <option key={place} value={place} />)}
+                </datalist>
+                <p className="mt-1 text-xs text-slate-500">
+                  Lifts, pumps, hallway lights and the terrace belong to the building, not to a flat.
+                </p>
+              </>
+            ) : (
+              <select
+                required
+                value={formData.unit_id}
+                onChange={(e) => setFormData({...formData, unit_id: e.target.value})}
+                className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm"
+              >
+                <option value="">Select Unit</option>
+                {units?.map(unit => (
+                  <option key={unit.unit_id} value={unit.unit_id}>Flat {unit.number}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>

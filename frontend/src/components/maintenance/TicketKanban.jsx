@@ -1,4 +1,4 @@
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock, AlertCircle, Building2, Home } from 'lucide-react';
 
 export default function TicketKanban({ tickets, onUpdateStatus }) {
   if (!tickets) return null;
@@ -66,7 +66,17 @@ export default function TicketKanban({ tickets, onUpdateStatus }) {
                 columnTickets.map(ticket => (
                   <div key={ticket.id} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-2">
-                      <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2 py-1 rounded">Flat {ticket.unit_number}</span>
+                      {ticket.scope === 'COMMON' ? (
+                        <span className="inline-flex items-center text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">
+                          <Building2 className="w-3 h-3 mr-1" />
+                          {ticket.location || 'Common area'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-xs font-bold text-teal-700 bg-teal-50 px-2 py-1 rounded">
+                          <Home className="w-3 h-3 mr-1" />
+                          Flat {ticket.unit_number}
+                        </span>
+                      )}
                       {getPriorityBadge(ticket.priority)}
                     </div>
                     

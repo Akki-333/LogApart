@@ -22,8 +22,8 @@ The core routing engine securely parses JWT tokens and automatically routes user
 
 ### 2. Super Admin Portal (Command Center)
 Designed for the building President / Secretary to oversee operations.
-- **Visual Unit Heatmap:** A visual grid mapping out 4 floors (20 units total, A-E) displaying real-time occupancy status.
-- **Structural Maintenance Kanban:** A ticketing system for building maintenance. Tickets feature automated SLA (Service Level Agreement) countdown timers, changing colors as they approach their deadlines.
+- **Visual Unit Heatmap:** A visual grid mapping out 4 floors (20 units total, A-E) displaying real-time occupancy status, with a Dues mode for money owed.
+- **Structural Maintenance Kanban:** A ticketing system for building maintenance. A ticket belongs either to a flat or to the common area, so a stuck lift or a failed pump is filed against the building and its location rather than against somebody's home. Tickets feature automated SLA countdown timers.
 - **Gate Oversight (Read-Only):** Admins have full visibility into the real-time security gate logs, but are restricted to a "Read-Only" mode to prevent interference with active guard tracking.
 
 ### 3. Security Guard Portal (Gatekeeper)
@@ -232,6 +232,28 @@ Attendance is one row per person per day, and marking the same day again
 corrects it instead of adding a second row. Monthly pay is computed from
 attendance rather than stored: a half day counts half, leave counts full, an
 absence counts none. The figure is indicative and the admin still signs it off.
+
+---
+
+## 🧾 Two defects carried since the first commit
+
+Both were fixed after the roadmap closed, in migration `005`.
+
+**Every ticket required a flat.** `maintenance_tickets.unit_id` was `NOT NULL`
+and every query inner-joined `units`, so a lift breakdown, a failed water pump
+or a dead hallway light had to be blamed on somebody's unit. That contradicted
+the structural-and-common scope the ticket system was built for, and the inner
+join meant a common fault with no flat would have been invisible on the admin
+dashboard. A ticket now carries a scope and, when it is common, a location such
+as Lift A or the basement pump room. Residents see their own flat's tickets plus
+every common one, so they can tell the lift is already reported rather than
+filing it again.
+
+**Notification read state was shared.** `notifications.is_read` was a single
+flag on the notification, so the first admin to open the bell cleared the badge
+for every other admin. Reads now live in `notification_reads`, one row per person
+per notification, and the unread count is computed per reader over everything
+addressed to them rather than only the twenty most recent.
 
 ---
 

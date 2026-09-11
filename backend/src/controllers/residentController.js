@@ -161,21 +161,31 @@ exports.getInvoices = withUnit(async (req, res, unit) => {
   });
 });
 
-/** 3. Issues raised for this flat, newest first. */
+/**
+ * 3. Issues for this flat, plus every common-area issue. A stuck lift concerns
+ * this resident too, and seeing it already reported stops a second report.
+ */
 exports.getTickets = withUnit(async (req, res, unit) => {
   const [rows] = await db.execute(
     `SELECT t.id, t.title, t.description, t.category, t.priority, t.status,
-            t.created_at, t.resolved_at, t.raised_by_resident,
+            t.scope, t.location, t.unit_id, t.created_at, t.resolved_at, t.raised_by_resident,
             usr.name AS reported_by, assignee.name AS assigned_to
      FROM maintenance_tickets t
      JOIN users usr ON t.created_by_id = usr.id
      LEFT JOIN users assignee ON t.assigned_to_id = assignee.id
-     WHERE t.unit_id = ?
+     WHERE t.unit_id = ? OR t.scope = 'COMMON'
      ORDER BY t.created_at DESC`,
     [unit.unit_id]
   );
 
-  res.json({ success: true, data: rows });
+  res.json({
+    success: true,
+    data: rows.map((row) => ({
+      ...row,
+      place: row.scope === 'COMMON' ? row.location || 'Common area' : `Flat ${unit.number}`,
+      is_mine: row.scope !== 'COMMON'
+    }))
+  });
 });
 
 /**
@@ -184,21 +194,37 @@ exports.getTickets = withUnit(async (req, res, unit) => {
  * portal. Everything arrives as MEDIUM for triage.
  */
 exports.createTicket = withUnit(async (req, res, unit) => {
-  const { title, description, category } = req.body;
+  const { title, description, category, scope, location } = req.body;
 
   if (!String(title || '').trim() || !String(description || '').trim()) {
     return res.status(400).json({ success: false, message: 'Give the issue a title and a description.' });
   }
 
+  const isCommon = scope === 'COMMON';
+
+  if (isCommon && !String(location || '').trim()) {
+    return res.status(400).json({ success: false, message: 'Say where it is, such as the lift or the stairwell.' });
+  }
+
   await db.execute(
     `INSERT INTO maintenance_tickets
-      (unit_id, created_by_id, title, description, category, priority, raised_by_resident)
-     VALUES (?, ?, ?, ?, ?, 'MEDIUM', 1)`,
-    [unit.unit_id, req.user.id, String(title).trim(), String(description).trim(), category || 'GENERAL']
+      (unit_id, scope, location, created_by_id, title, description, category, priority, raised_by_resident)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'MEDIUM', 1)`,
+    [
+      isCommon ? null : unit.unit_id,
+      isCommon ? 'COMMON' : 'UNIT',
+      isCommon ? String(location).trim() : null,
+      req.user.id,
+      String(title).trim(),
+      String(description).trim(),
+      category || 'GENERAL'
+    ]
   );
 
   createNotification({
-    title: `New issue from Flat ${unit.number}`,
+    title: isCommon
+      ? `Common area issue: ${String(location).trim()}`
+      : `New issue from Flat ${unit.number}`,
     message: `${req.user.name}: ${String(title).trim()}`,
     target_role: 'ADMIN',
     type: 'MAINTENANCE'

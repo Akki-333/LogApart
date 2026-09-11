@@ -274,8 +274,12 @@ export default function DashboardHome() {
               stats?.tickets.recent_list.map((ticket) => (
                 <div key={ticket.id} className="p-3 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100 transition-colors">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-teal-800 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                      Flat {ticket.unit_number}
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
+                      ticket.scope === 'COMMON'
+                        ? 'text-indigo-800 bg-indigo-50 border-indigo-200'
+                        : 'text-teal-800 bg-teal-50 border-teal-200'
+                    }`}>
+                      {ticket.scope === 'COMMON' ? (ticket.location || 'Common area') : `Flat ${ticket.unit_number}`}
                     </span>
                     {getPriorityBadge(ticket.priority)}
                   </div>

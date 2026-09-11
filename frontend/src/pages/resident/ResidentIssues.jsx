@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../lib/api';
 import { formatDay } from '../../lib/money';
-import { Wrench, Plus, X, CheckCircle2, Clock, AlertCircle, Info } from 'lucide-react';
+import { Wrench, Plus, X, CheckCircle2, Clock, AlertCircle, Info, Building2, Home } from 'lucide-react';
 
 const CATEGORIES = [
   { value: 'PLUMBING', label: 'Plumbing or seepage' },
@@ -26,7 +26,7 @@ export default function ResidentIssues() {
   const [error, setError] = useState('');
   const [banner, setBanner] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', category: 'PLUMBING' });
+  const [form, setForm] = useState({ scope: 'COMMON', location: '', title: '', description: '', category: 'PLUMBING' });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -50,7 +50,7 @@ export default function ResidentIssues() {
       const res = await api.post('/api/resident/tickets', form);
       setBanner(res.data.message);
       setIsOpen(false);
-      setForm({ title: '', description: '', category: 'PLUMBING' });
+      setForm({ scope: 'COMMON', location: '', title: '', description: '', category: 'PLUMBING' });
       load();
       setTimeout(() => setBanner(''), 5000);
     } catch (err) {
@@ -118,10 +118,18 @@ export default function ResidentIssues() {
             <div key={ticket.id} className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h3 className="text-sm font-bold text-slate-900">{ticket.title}</h3>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${STATUS_STYLES[ticket.status]}`}>
                       {ticket.status.replace('_', ' ')}
+                    </span>
+                    <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider ${
+                      ticket.scope === 'COMMON'
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        : 'bg-teal-50 text-teal-700 border-teal-200'
+                    }`}>
+                      {ticket.scope === 'COMMON' ? <Building2 className="w-3 h-3 mr-1" /> : <Home className="w-3 h-3 mr-1" />}
+                      {ticket.place}
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 leading-relaxed">{ticket.description}</p>
@@ -166,6 +174,45 @@ export default function ResidentIssues() {
               {formError && (
                 <div className="bg-rose-50 border-l-4 border-rose-500 p-3 rounded-r-md">
                   <p className="text-sm text-rose-700">{formError}</p>
+                </div>
+              )}
+
+              <div>
+                <label className={label}>What does this affect?</label>
+                <div className="grid grid-cols-2 gap-2 mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, scope: 'COMMON' })}
+                    className={`flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-bold border transition-colors ${
+                      form.scope === 'COMMON' ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400'
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Shared space
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, scope: 'UNIT' })}
+                    className={`flex items-center justify-center px-3 py-2.5 rounded-lg text-sm font-bold border transition-colors ${
+                      form.scope === 'UNIT' ? 'bg-teal-600 text-white border-teal-600' : 'bg-white text-slate-600 border-slate-300 hover:border-teal-400'
+                    }`}
+                  >
+                    <Home className="w-4 h-4 mr-2" />
+                    My flat
+                  </button>
+                </div>
+              </div>
+
+              {form.scope === 'COMMON' && (
+                <div>
+                  <label className={label}>Where is it</label>
+                  <input
+                    type="text" required maxLength={100}
+                    placeholder="e.g. Lift A, third floor stairwell, terrace"
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    className={field}
+                  />
                 </div>
               )}
 

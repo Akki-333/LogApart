@@ -46,13 +46,16 @@ exports.getDashboardStats = async (req, res) => {
     `);
 
     // 5. Recent Open Maintenance Tickets
+    // LEFT JOIN on units: a common-area ticket has no flat, and an inner join
+    // would hide exactly the building-wide faults the admin most needs to see.
     const [recentTickets] = await db.execute(`
-      SELECT 
+      SELECT
         t.id, t.title, t.priority, t.status, t.created_at, t.category,
+        t.scope, t.location,
         u.number as unit_number,
         usr.name as reported_by
       FROM maintenance_tickets t
-      JOIN units u ON t.unit_id = u.id
+      LEFT JOIN units u ON t.unit_id = u.id
       JOIN users usr ON t.created_by_id = usr.id
       WHERE t.status != 'RESOLVED'
       ORDER BY 
