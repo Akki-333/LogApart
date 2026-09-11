@@ -51,7 +51,8 @@ function splitPaise(totalPaise, weights) {
  * Builds the invoice lines for one billing run.
  *
  * units:  [{ unit_id, number, area, resident_user_id }]
- * config: { maintenanceRate, rateBasis, commonElectricityTotal, commonWaterTotal, splitBasis }
+ * config: { maintenanceRate, rateBasis, corpusRate, commonElectricityTotal,
+ *           commonWaterTotal, splitBasis }
  *
  * Returns { lines, totals } or throws when a per-square-foot basis is asked for
  * and some flat has no recorded area, since guessing an area would silently
@@ -61,6 +62,9 @@ function buildRunLines(units, config) {
   const {
     maintenanceRate = 0,
     rateBasis = 'FLAT',
+    // A corpus contribution is the same figure from every home whatever its
+    // size, because it buys a share of the building rather than a service.
+    corpusRate = 0,
     commonElectricityTotal = 0,
     commonWaterTotal = 0,
     splitBasis = 'EQUAL'
@@ -92,7 +96,8 @@ function buildRunLines(units, config) {
         ? Math.round(toPaise(maintenanceRate) * Number(unit.area))
         : toPaise(maintenanceRate);
 
-    const totalPaise = maintenancePaise + electricityShares[index] + waterShares[index];
+    const corpusPaise = toPaise(corpusRate);
+    const totalPaise = maintenancePaise + electricityShares[index] + waterShares[index] + corpusPaise;
 
     return {
       unit_id: unit.unit_id,
@@ -101,6 +106,7 @@ function buildRunLines(units, config) {
       maintenance_amount: toRupees(maintenancePaise),
       electricity_amount: toRupees(electricityShares[index]),
       water_amount: toRupees(waterShares[index]),
+      corpus_amount: toRupees(corpusPaise),
       total_amount: toRupees(totalPaise)
     };
   });
@@ -110,6 +116,7 @@ function buildRunLines(units, config) {
     maintenance_total: toRupees(lines.reduce((sum, l) => sum + toPaise(l.maintenance_amount), 0)),
     electricity_total: toRupees(electricityShares.reduce((sum, s) => sum + s, 0)),
     water_total: toRupees(waterShares.reduce((sum, s) => sum + s, 0)),
+    corpus_total: toRupees(lines.reduce((sum, l) => sum + toPaise(l.corpus_amount), 0)),
     total_billed: toRupees(lines.reduce((sum, l) => sum + toPaise(l.total_amount), 0))
   };
 
@@ -161,6 +168,47 @@ function periodToDate(period) {
   return `${period}-01`;
 }
 
+/**
+ * What a late fee comes to on one overdue invoice.
+ *
+ * The fee is computed here and then raised as a real adjustment row, never
+ * derived on read. A charge a resident can see on Monday and not on Tuesday is
+ * not a charge, it is a rumour.
+ *
+ * rule: { basis: 'FLAT' | 'PERCENT', amount, graceDays, maxAmount }
+ */
+function lateFeeFor(invoice, rule, today = new Date()) {
+  const { basis = 'FLAT', amount = 0, graceDays = 0, maxAmount = 0 } = rule || {};
+  const overdue = daysOverdue(invoice, today);
+
+  if (overdue <= Number(graceDays)) return 0;
+
+  const outstandingPaise = toPaise(invoice.total_amount) - toPaise(invoice.amount_paid);
+
+  if (outstandingPaise <= 0) return 0;
+
+  const feePaise =
+    basis === 'PERCENT'
+      ? Math.round((outstandingPaise * Number(amount)) / 100)
+      : toPaise(amount);
+
+  const cappedPaise = Number(maxAmount) > 0 ? Math.min(feePaise, toPaise(maxAmount)) : feePaise;
+
+  return toRupees(Math.max(0, cappedPaise));
+}
+
+/**
+ * The Indian financial year a date falls in, as '2026-2027'. April starts it,
+ * so a bill dated March belongs to the year that began the previous April.
+ */
+function financialYear(date = new Date()) {
+  const when = typeof date === 'string' ? new Date(`${date}T00:00:00`) : date;
+  const year = when.getFullYear();
+  const startYear = when.getMonth() >= 3 ? year : year - 1;
+
+  return `${startYear}-${startYear + 1}`;
+}
+
 module.exports = {
   toPaise,
   toRupees,
@@ -169,5 +217,7 @@ module.exports = {
   displayStatus,
   daysOverdue,
   agingBucket,
-  periodToDate
+  periodToDate,
+  lateFeeFor,
+  financialYear
 };

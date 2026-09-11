@@ -28,6 +28,7 @@ const decorate = (invoice) => ({
   maintenance_amount: Number(invoice.maintenance_amount),
   electricity_amount: Number(invoice.electricity_amount),
   water_amount: Number(invoice.water_amount),
+  corpus_amount: Number(invoice.corpus_amount || 0),
   balance: toRupees(toPaise(invoice.total_amount) - toPaise(invoice.amount_paid)),
   display_status: displayStatus(invoice),
   days_overdue: daysOverdue(invoice)
@@ -36,6 +37,7 @@ const decorate = (invoice) => ({
 const readConfig = (body) => ({
   maintenanceRate: Number(body.maintenance_rate || 0),
   rateBasis: body.rate_basis === 'PER_SQFT' ? 'PER_SQFT' : 'FLAT',
+  corpusRate: Number(body.corpus_rate || 0),
   commonElectricityTotal: Number(body.common_electricity_total || 0),
   commonWaterTotal: Number(body.common_water_total || 0),
   splitBasis: body.split_basis === 'PER_SQFT' ? 'PER_SQFT' : 'EQUAL'
@@ -84,6 +86,7 @@ exports.createRun = async (req, res) => {
 
   if (
     config.maintenanceRate <= 0 &&
+    config.corpusRate <= 0 &&
     config.commonElectricityTotal <= 0 &&
     config.commonWaterTotal <= 0
   ) {
@@ -119,12 +122,13 @@ exports.createRun = async (req, res) => {
 
     const [run] = await connection.execute(
       `INSERT INTO billing_runs
-        (period_month, maintenance_rate, rate_basis, common_electricity_total, common_water_total,
-         split_basis, due_date, units_billed, total_billed, note, generated_by_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (period_month, maintenance_rate, corpus_rate, rate_basis, common_electricity_total,
+         common_water_total, split_basis, due_date, units_billed, total_billed, note, generated_by_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         periodMonth,
         config.maintenanceRate,
+        config.corpusRate,
         config.rateBasis,
         config.commonElectricityTotal,
         config.commonWaterTotal,
@@ -141,8 +145,8 @@ exports.createRun = async (req, res) => {
       await connection.execute(
         `INSERT INTO invoices
           (billing_run_id, unit_id, resident_user_id, period_month, maintenance_amount,
-           electricity_amount, water_amount, total_amount, due_date)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           electricity_amount, water_amount, corpus_amount, total_amount, due_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           run.insertId,
           line.unit_id,
@@ -151,6 +155,7 @@ exports.createRun = async (req, res) => {
           line.maintenance_amount,
           line.electricity_amount,
           line.water_amount,
+          line.corpus_amount,
           line.total_amount,
           dueDate
         ]
