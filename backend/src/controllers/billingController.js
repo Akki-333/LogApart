@@ -7,7 +7,8 @@ const {
   agingBucket,
   periodToDate,
   toPaise,
-  toRupees
+  toRupees,
+  lateFeeFor
 } = require('../services/billing');
 const { createNotification } = require('./notificationController');
 
@@ -42,6 +43,80 @@ const readConfig = (body) => ({
   commonWaterTotal: Number(body.common_water_total || 0),
   splitBasis: body.split_basis === 'PER_SQFT' ? 'PER_SQFT' : 'EQUAL'
 });
+
+/**
+ * Issues a receipt number for the calendar year the payment falls in.
+ * Counted inside the caller's transaction and under a row lock on the year, so
+ * two admins recording a payment at the same moment cannot mint the same number.
+ */
+const nextReceiptNumber = async (connection, paidOn) => {
+  const year = new Date(`${paidOn}T00:00:00`).getFullYear();
+  const [[counted]] = await connection.execute(
+    'SELECT COUNT(*) AS issued FROM payment_records WHERE receipt_number LIKE ? FOR UPDATE',
+    [`RCP-${year}-%`]
+  );
+
+  return `RCP-${year}-${String(Number(counted.issued) + 1).padStart(4, '0')}`;
+};
+
+/**
+ * Puts money against an invoice and moves its status. Shared by the admin
+ * recording a payment directly and by an admin verifying one a resident
+ * declared, so both routes settle an invoice exactly the same way.
+ *
+ * The caller has already locked the invoice row.
+ */
+const settleInvoice = async (connection, invoice, details) => {
+  const amountPaise = toPaise(details.amount);
+  const alreadyPaid = toPaise(invoice.amount_paid);
+  const total = toPaise(invoice.total_amount);
+
+  if (alreadyPaid + amountPaise > total) {
+    const error = new Error(
+      `That exceeds the balance of ${toRupees(total - alreadyPaid)} on this invoice.`
+    );
+    error.code = 'OVER_PAYMENT';
+    throw error;
+  }
+
+  const paidOn = details.paidOn || new Date().toISOString().slice(0, 10);
+  const receiptNumber = await nextReceiptNumber(connection, paidOn);
+
+  const [record] = await connection.execute(
+    `INSERT INTO payment_records
+      (receipt_number, invoice_id, amount, mode, reference, paid_on, note, recorded_by_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      receiptNumber,
+      invoice.id,
+      toRupees(amountPaise),
+      details.mode || 'UPI',
+      details.reference || null,
+      paidOn,
+      details.note || null,
+      details.userId
+    ]
+  );
+
+  const nextPaid = alreadyPaid + amountPaise;
+  const nextStatus = nextPaid >= total ? 'PAID' : 'PARTIAL';
+
+  await connection.execute(
+    `UPDATE invoices
+     SET amount_paid = ?, status = ?, paid_at = IF(? = 'PAID', CURRENT_TIMESTAMP, NULL)
+     WHERE id = ?`,
+    [toRupees(nextPaid), nextStatus, nextStatus, invoice.id]
+  );
+
+  return {
+    payment_record_id: record.insertId,
+    receipt_number: receiptNumber,
+    paid_on: paidOn,
+    amount_paid: toRupees(nextPaid),
+    balance: toRupees(total - nextPaid),
+    status: nextStatus
+  };
+};
 
 /**
  * 1. Dry run. Shows the admin exactly what each flat would be charged before
@@ -404,69 +479,40 @@ exports.recordPayment = async (req, res) => {
     }
 
     const invoice = rows[0];
-    const alreadyPaid = toPaise(invoice.amount_paid);
-    const total = toPaise(invoice.total_amount);
-
-    if (alreadyPaid + amountPaise > total) {
-      await connection.rollback();
-      return res.status(400).json({
-        success: false,
-        message: `That exceeds the balance of ${toRupees(total - alreadyPaid)} on this invoice.`
-      });
-    }
-
-    await connection.execute(
-      `INSERT INTO payment_records (invoice_id, amount, mode, reference, paid_on, note, recorded_by_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        toRupees(amountPaise),
-        mode || 'UPI',
-        reference || null,
-        paidOn || new Date().toISOString().slice(0, 10),
-        note || null,
-        req.user.id
-      ]
-    );
-
-    const nextPaid = alreadyPaid + amountPaise;
-    const nextStatus = nextPaid >= total ? 'PAID' : 'PARTIAL';
-
-    await connection.execute(
-      `UPDATE invoices
-       SET amount_paid = ?, status = ?, paid_at = IF(? = 'PAID', CURRENT_TIMESTAMP, NULL)
-       WHERE id = ?`,
-      [toRupees(nextPaid), nextStatus, nextStatus, id]
-    );
+    const settled = await settleInvoice(connection, invoice, {
+      amount,
+      mode,
+      reference,
+      paidOn,
+      note,
+      userId: req.user.id
+    });
 
     await recordAudit(req, {
       action: 'RECORD_PAYMENT',
       entity: 'invoices',
       entity_id: id,
-      summary: `Recorded ${toRupees(amountPaise)} against invoice ${id} by ${mode || 'UPI'}`,
+      summary: `Recorded ${amount} against invoice ${id} by ${mode || 'UPI'}, receipt ${settled.receipt_number}`,
       before: { amount_paid: invoice.amount_paid, status: invoice.status },
-      after: {
-        amount_paid: toRupees(nextPaid),
-        status: nextStatus,
-        mode: mode || 'UPI',
-        reference: reference || null,
-        paid_on: paidOn || null
-      }
+      after: settled
     }, connection);
 
     await connection.commit();
 
     res.json({
       success: true,
-      message: nextStatus === 'PAID' ? 'Invoice settled in full.' : 'Part payment recorded.',
-      data: {
-        amount_paid: toRupees(nextPaid),
-        balance: toRupees(total - nextPaid),
-        status: nextStatus
-      }
+      message: settled.status === 'PAID'
+        ? `Invoice settled in full. Receipt ${settled.receipt_number}.`
+        : `Part payment recorded. Receipt ${settled.receipt_number}.`,
+      data: settled
     });
   } catch (error) {
     await connection.rollback();
+
+    if (error.code === 'OVER_PAYMENT') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+
     console.error('Error recording payment:', error);
     res.status(500).json({ success: false, message: 'Server error recording payment' });
   } finally {
@@ -628,4 +674,504 @@ exports.outstandingForUnit = async (unitId, connection = db) => {
     open_invoices: invoices.length,
     invoices
   };
+};
+
+/**
+ * 11. Late fees, priced before they are charged.
+ *
+ * A fee is raised as a real adjustment that moves what the flat owes, never
+ * derived at read time, so a resident who saw a figure on Monday sees the same
+ * figure on Tuesday. The preview runs the same code path as the commit, which
+ * is what makes the table in front of the admin worth trusting.
+ *
+ * One fee per invoice per calendar month. A second run in the same month finds
+ * the flats it already charged and leaves them alone, so an admin who clicks
+ * twice does not double a defaulter's bill.
+ */
+const priceLateFees = async (connection, body) => {
+  const rule = {
+    basis: body.basis === 'PERCENT' ? 'PERCENT' : 'FLAT',
+    amount: Number(body.amount || 0),
+    graceDays: Number(body.grace_days || 0),
+    maxAmount: Number(body.max_amount || 0)
+  };
+
+  const params = [];
+  let periodFilter = '';
+
+  if (body.period) {
+    const periodMonth = periodToDate(body.period);
+    if (!periodMonth) return { rule, lines: [], error: 'Provide the billing month as YYYY-MM.' };
+    periodFilter = 'AND i.period_month = ?';
+    params.push(periodMonth);
+  }
+
+  const [invoices] = await connection.execute(
+    `SELECT i.*, u.number AS unit_number,
+            EXISTS (
+              SELECT 1 FROM invoice_adjustments a
+              WHERE a.invoice_id = i.id AND a.kind = 'LATE_FEE'
+                AND YEAR(a.created_at) = YEAR(CURDATE()) AND MONTH(a.created_at) = MONTH(CURDATE())
+            ) AS charged_this_month
+     FROM invoices i
+     JOIN units u ON i.unit_id = u.id
+     WHERE i.status <> 'PAID' AND i.due_date < CURDATE() ${periodFilter}
+     ORDER BY i.due_date ASC`,
+    params
+  );
+
+  const lines = invoices
+    .map((invoice) => ({
+      invoice_id: invoice.id,
+      unit_number: invoice.unit_number,
+      due_date: invoice.due_date,
+      days_overdue: daysOverdue(invoice),
+      balance: toRupees(toPaise(invoice.total_amount) - toPaise(invoice.amount_paid)),
+      fee: lateFeeFor(invoice, rule),
+      already_charged: Boolean(Number(invoice.charged_this_month))
+    }))
+    .filter((line) => line.fee > 0);
+
+  return { rule, lines };
+};
+
+exports.previewLateFees = async (req, res) => {
+  try {
+    const { rule, lines, error } = await priceLateFees(db, req.body);
+
+    if (error) return res.status(400).json({ success: false, message: error });
+
+    const chargeable = lines.filter((line) => !line.already_charged);
+
+    res.json({
+      success: true,
+      data: {
+        rule,
+        lines,
+        total_fee: toRupees(chargeable.reduce((sum, line) => sum + toPaise(line.fee), 0)),
+        chargeable: chargeable.length,
+        skipped: lines.length - chargeable.length
+      }
+    });
+  } catch (err) {
+    console.error('Error pricing late fees:', err);
+    res.status(500).json({ success: false, message: 'Server error pricing late fees' });
+  }
+};
+
+exports.applyLateFees = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const { rule, lines, error } = await priceLateFees(connection, req.body);
+
+    if (error) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: error });
+    }
+
+    const chargeable = lines.filter((line) => !line.already_charged);
+
+    for (const line of chargeable) {
+      await connection.execute(
+        `INSERT INTO invoice_adjustments (invoice_id, kind, amount, reason, created_by_id)
+         VALUES (?, 'LATE_FEE', ?, ?, ?)`,
+        [
+          line.invoice_id,
+          line.fee,
+          `${line.days_overdue} days past the due date of ${line.due_date}`,
+          req.user.id
+        ]
+      );
+
+      // The adjustment row explains the charge. This is the charge.
+      await connection.execute(
+        'UPDATE invoices SET total_amount = total_amount + ? WHERE id = ?',
+        [line.fee, line.invoice_id]
+      );
+    }
+
+    const totalFee = toRupees(chargeable.reduce((sum, line) => sum + toPaise(line.fee), 0));
+
+    await recordAudit(req, {
+      action: 'APPLY_LATE_FEES',
+      entity: 'invoices',
+      entity_id: req.body.period || 'all',
+      summary: `Charged ${totalFee} in late fees across ${chargeable.length} invoices`,
+      after: { rule, charged: chargeable }
+    }, connection);
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: chargeable.length === 0
+        ? 'Nothing to charge. Every overdue flat has already been charged this month.'
+        : `Charged ${totalFee} across ${chargeable.length} invoices.`,
+      data: { charged: chargeable.length, total_fee: totalFee, skipped: lines.length - chargeable.length }
+    });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error applying late fees:', err);
+    res.status(500).json({ success: false, message: 'Server error applying late fees' });
+  } finally {
+    connection.release();
+  }
+};
+
+/** 12. A waiver or a correction on one invoice, always with a reason. */
+exports.addAdjustment = async (req, res) => {
+  const { id } = req.params;
+  const { kind, amount, reason } = req.body;
+
+  if (!['WAIVER', 'CREDIT', 'CORRECTION', 'LATE_FEE'].includes(kind)) {
+    return res.status(400).json({ success: false, message: 'Choose what kind of adjustment this is.' });
+  }
+
+  // A waiver or credit reduces the bill whichever sign the caller sent, so a
+  // mistyped minus cannot quietly turn relief into a charge.
+  const magnitude = Math.abs(Number(amount));
+  const signed = ['WAIVER', 'CREDIT'].includes(kind) ? -magnitude : magnitude;
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.execute('SELECT * FROM invoices WHERE id = ? FOR UPDATE', [id]);
+
+    if (rows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    const invoice = rows[0];
+    const nextTotalPaise = toPaise(invoice.total_amount) + toPaise(signed);
+
+    if (nextTotalPaise < toPaise(invoice.amount_paid)) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `That would take the bill below the ${invoice.amount_paid} already paid against it. Refund the difference instead.`
+      });
+    }
+
+    await connection.execute(
+      `INSERT INTO invoice_adjustments (invoice_id, kind, amount, reason, created_by_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, kind, signed, String(reason).trim(), req.user.id]
+    );
+
+    // A waiver that closes the gap settles the invoice, rather than leaving it
+    // open at a balance of nothing.
+    const settled = nextTotalPaise <= toPaise(invoice.amount_paid);
+
+    await connection.execute(
+      'UPDATE invoices SET total_amount = ?, status = ? WHERE id = ?',
+      [toRupees(nextTotalPaise), settled ? 'PAID' : invoice.status, id]
+    );
+
+    await recordAudit(req, {
+      action: kind === 'WAIVER' ? 'WAIVE_DUES' : 'ADJUST_INVOICE',
+      entity: 'invoices',
+      entity_id: id,
+      summary: `${kind} of ${magnitude} on invoice ${id}: ${reason}`,
+      before: { total_amount: invoice.total_amount, status: invoice.status },
+      after: { total_amount: toRupees(nextTotalPaise), kind, amount: signed }
+    }, connection);
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: 'Adjustment recorded.',
+      data: {
+        total_amount: toRupees(nextTotalPaise),
+        balance: toRupees(nextTotalPaise - toPaise(invoice.amount_paid))
+      }
+    });
+  } catch (err) {
+    await connection.rollback();
+    console.error('Error adjusting invoice:', err);
+    res.status(500).json({ success: false, message: 'Server error adjusting that invoice' });
+  } finally {
+    connection.release();
+  }
+};
+
+/** 13. What has been added to or taken off one invoice, and why. */
+exports.getAdjustments = async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT a.*, usr.name AS created_by
+       FROM invoice_adjustments a
+       LEFT JOIN users usr ON a.created_by_id = usr.id
+       WHERE a.invoice_id = ?
+       ORDER BY a.created_at ASC`,
+      [req.params.id]
+    );
+
+    res.json({ success: true, data: rows.map((row) => ({ ...row, amount: Number(row.amount) })) });
+  } catch (error) {
+    console.error('Error reading adjustments:', error);
+    res.status(500).json({ success: false, message: 'Server error reading adjustments' });
+  }
+};
+
+/**
+ * 14. Chase the flats that are behind, and remember having done it.
+ *
+ * Each reminder is addressed to one resident, so a defaulter list never
+ * becomes a notice to the building. The record of who was chased and when is
+ * the point: without it a committee argues from memory.
+ */
+exports.sendReminders = async (req, res) => {
+  const periodMonth = req.body.period ? periodToDate(req.body.period) : null;
+
+  if (req.body.period && !periodMonth) {
+    return res.status(400).json({ success: false, message: 'Provide the billing month as YYYY-MM.' });
+  }
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [invoices] = await connection.execute(
+      `SELECT i.*, u.number AS unit_number, usr.id AS resident_id, usr.name AS resident_name
+       FROM invoices i
+       JOIN units u ON i.unit_id = u.id
+       LEFT JOIN residents r ON r.unit_id = i.unit_id AND r.is_active = true
+       LEFT JOIN users usr ON r.user_id = usr.id
+       WHERE i.status <> 'PAID' AND i.due_date < CURDATE()
+         ${periodMonth ? 'AND i.period_month = ?' : ''}
+       ORDER BY i.due_date ASC`,
+      periodMonth ? [periodMonth] : []
+    );
+
+    // A flat between tenants has nobody to remind. It stays in the defaulter
+    // list, but sending a notification to no one is not a reminder.
+    const reachable = invoices.filter((invoice) => invoice.resident_id);
+
+    for (const invoice of reachable) {
+      const balance = toRupees(toPaise(invoice.total_amount) - toPaise(invoice.amount_paid));
+      const overdue = daysOverdue(invoice);
+
+      await connection.execute(
+        `INSERT INTO dues_reminders (invoice_id, unit_id, sent_by_id, days_overdue)
+         VALUES (?, ?, ?, ?)`,
+        [invoice.id, invoice.unit_id, req.user.id, overdue]
+      );
+
+      await createNotification({
+        title: `Dues pending for flat ${invoice.unit_number}`,
+        message: `${balance} is outstanding, ${overdue} days past the due date of ${invoice.due_date}.`,
+        target_role: 'RESIDENT',
+        target_user_id: invoice.resident_id,
+        type: 'BILLING'
+      });
+    }
+
+    await recordAudit(req, {
+      action: 'SEND_DUES_REMINDERS',
+      entity: 'invoices',
+      entity_id: req.body.period || 'all',
+      summary: `Reminded ${reachable.length} flats about outstanding dues`,
+      after: { reminded: reachable.map((invoice) => invoice.unit_number) }
+    }, connection);
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: reachable.length === 0
+        ? 'Nothing to chase. No overdue flat has a resident to remind.'
+        : `Reminded ${reachable.length} flats.`,
+      data: {
+        reminded: reachable.length,
+        unreachable: invoices.length - reachable.length
+      }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error sending reminders:', error);
+    res.status(500).json({ success: false, message: 'Server error sending reminders' });
+  } finally {
+    connection.release();
+  }
+};
+
+/** 15. When each invoice was last chased, so nobody is chased twice a day. */
+exports.getReminderHistory = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT invoice_id, MAX(sent_at) AS last_sent_at, COUNT(*) AS times_reminded
+       FROM dues_reminders GROUP BY invoice_id`
+    );
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error reading reminder history:', error);
+    res.status(500).json({ success: false, message: 'Server error reading reminders' });
+  }
+};
+
+/** 16. What residents say they have paid, waiting on an admin to confirm it. */
+exports.getDeclarations = async (req, res) => {
+  const status = ['PENDING', 'VERIFIED', 'REJECTED'].includes(req.query.status)
+    ? req.query.status
+    : 'PENDING';
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT d.*, u.number AS unit_number, usr.name AS declared_by,
+              i.period_month, i.total_amount, i.amount_paid, i.due_date,
+              reviewer.name AS reviewed_by
+       FROM payment_declarations d
+       JOIN units u ON d.unit_id = u.id
+       JOIN invoices i ON d.invoice_id = i.id
+       LEFT JOIN users usr ON d.declared_by_id = usr.id
+       LEFT JOIN users reviewer ON d.reviewed_by_id = reviewer.id
+       WHERE d.status = ?
+       ORDER BY d.created_at ASC
+       LIMIT 200`,
+      [status]
+    );
+
+    res.json({
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        amount: Number(row.amount),
+        total_amount: Number(row.total_amount),
+        amount_paid: Number(row.amount_paid),
+        balance: toRupees(toPaise(row.total_amount) - toPaise(row.amount_paid))
+      }))
+    });
+  } catch (error) {
+    console.error('Error reading declarations:', error);
+    res.status(500).json({ success: false, message: 'Server error reading declared payments' });
+  }
+};
+
+/**
+ * 17. Confirm or refuse a declared payment.
+ *
+ * Verifying is what turns a resident's word into money in the ledger, and it is
+ * the same settlement the admin performs by hand, so a declared payment and a
+ * recorded one are indistinguishable afterwards apart from where they came from.
+ */
+exports.reviewDeclaration = async (req, res) => {
+  const { id } = req.params;
+  const approve = req.body.approve === true || req.body.approve === 'true';
+  const note = String(req.body.note || '').trim();
+
+  if (!approve && note.length < 4) {
+    return res.status(400).json({ success: false, message: 'Say why the declared payment is being refused.' });
+  }
+
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [rows] = await connection.execute(
+      'SELECT * FROM payment_declarations WHERE id = ? FOR UPDATE',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'No such declared payment.' });
+    }
+
+    const declaration = rows[0];
+
+    if (declaration.status !== 'PENDING') {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        message: `That declaration was already ${declaration.status.toLowerCase()}.`
+      });
+    }
+
+    let settled = null;
+
+    if (approve) {
+      const [invoices] = await connection.execute(
+        'SELECT * FROM invoices WHERE id = ? FOR UPDATE',
+        [declaration.invoice_id]
+      );
+
+      if (invoices.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ success: false, message: 'The invoice behind that declaration is gone.' });
+      }
+
+      settled = await settleInvoice(connection, invoices[0], {
+        amount: declaration.amount,
+        mode: declaration.mode,
+        reference: declaration.reference,
+        paidOn: declaration.paid_on,
+        note: `Declared by the resident. ${declaration.note || ''}`.trim(),
+        userId: req.user.id
+      });
+    }
+
+    await connection.execute(
+      `UPDATE payment_declarations
+       SET status = ?, reviewed_by_id = ?, reviewed_at = CURRENT_TIMESTAMP,
+           review_note = ?, payment_record_id = ?
+       WHERE id = ?`,
+      [
+        approve ? 'VERIFIED' : 'REJECTED',
+        req.user.id,
+        note || null,
+        settled ? settled.payment_record_id : null,
+        id
+      ]
+    );
+
+    await recordAudit(req, {
+      action: approve ? 'VERIFY_DECLARED_PAYMENT' : 'REJECT_DECLARED_PAYMENT',
+      entity: 'payment_declarations',
+      entity_id: id,
+      summary: approve
+        ? `Verified ${declaration.amount} declared by flat ${declaration.unit_id}, receipt ${settled.receipt_number}`
+        : `Refused ${declaration.amount} declared by flat ${declaration.unit_id}: ${note}`,
+      before: declaration,
+      after: settled
+    }, connection);
+
+    await createNotification({
+      title: approve ? 'Payment confirmed' : 'Payment could not be confirmed',
+      message: approve
+        ? `${declaration.amount} has been recorded. Receipt ${settled.receipt_number}.`
+        : `${declaration.amount} was not recorded: ${note}`,
+      target_role: 'RESIDENT',
+      target_user_id: declaration.declared_by_id,
+      type: 'BILLING'
+    });
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: approve ? `Payment confirmed. Receipt ${settled.receipt_number}.` : 'Declared payment refused.',
+      data: settled
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    if (error.code === 'OVER_PAYMENT') {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+
+    console.error('Error reviewing declaration:', error);
+    res.status(500).json({ success: false, message: 'Server error reviewing that declaration' });
+  } finally {
+    connection.release();
+  }
 };

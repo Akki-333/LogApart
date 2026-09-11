@@ -31,6 +31,41 @@ router.delete('/runs/:id', adminOnly, billingController.deleteRun);
 // Invoices and the payment ledger.
 router.get('/invoices', adminOnly, billingController.getInvoices);
 router.get('/invoices/:id', adminOnly, billingController.getInvoice);
+// Late fees are priced before they are charged, on the same code path.
+router.post('/late-fees/preview', adminOnly, billingController.previewLateFees);
+router.post(
+  '/late-fees',
+  adminOnly,
+  validate({
+    amount: { required: true, type: 'number', min: 0, label: 'Fee' },
+    basis: { oneOf: ['FLAT', 'PERCENT'], label: 'Fee basis' },
+    grace_days: { type: 'integer', min: 0, max: 90, label: 'Grace period' },
+    period: { type: 'month', label: 'Billing month' }
+  }),
+  billingController.applyLateFees
+);
+
+// Waivers, credits and corrections, each with a reason on the record.
+router.get('/invoices/:id/adjustments', adminOnly, billingController.getAdjustments);
+router.post(
+  '/invoices/:id/adjustments',
+  adminOnly,
+  validate({
+    kind: { required: true, oneOf: ['WAIVER', 'CREDIT', 'CORRECTION', 'LATE_FEE'], label: 'Adjustment' },
+    amount: { required: true, type: 'number', min: 1, label: 'Amount' },
+    reason: { required: true, type: 'string', minLength: 4, maxLength: 255, label: 'Reason' }
+  }),
+  billingController.addAdjustment
+);
+
+// Chasing the flats that are behind, one resident at a time.
+router.get('/reminders', adminOnly, billingController.getReminderHistory);
+router.post('/reminders', adminOnly, billingController.sendReminders);
+
+// What residents say they have paid.
+router.get('/declarations', adminOnly, billingController.getDeclarations);
+router.post('/declarations/:id/review', adminOnly, billingController.reviewDeclaration);
+
 router.post(
   '/invoices/:id/payments',
   adminOnly,

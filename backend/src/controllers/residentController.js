@@ -133,7 +133,7 @@ exports.getInvoices = withUnit(async (req, res, unit) => {
   if (invoices.length > 0) {
     const ids = invoices.map((invoice) => invoice.id);
     const [payments] = await db.query(
-      `SELECT invoice_id, amount, mode, reference, paid_on FROM payment_records
+      `SELECT invoice_id, receipt_number, amount, mode, reference, paid_on FROM payment_records
        WHERE invoice_id IN (?) ORDER BY paid_on DESC`,
       [ids]
     );
@@ -145,8 +145,38 @@ exports.getInvoices = withUnit(async (req, res, unit) => {
       byInvoice.set(payment.invoice_id, list);
     }
 
+    const [declarations] = await db.query(
+      `SELECT id, invoice_id, amount, mode, reference, paid_on, status, review_note, created_at
+       FROM payment_declarations WHERE invoice_id IN (?) ORDER BY created_at DESC`,
+      [ids]
+    );
+
+    const declaredByInvoice = new Map();
+    for (const declaration of declarations) {
+      const list = declaredByInvoice.get(declaration.invoice_id) || [];
+      list.push({ ...declaration, amount: Number(declaration.amount) });
+      declaredByInvoice.set(declaration.invoice_id, list);
+    }
+
+    const [adjustments] = await db.query(
+      `SELECT invoice_id, kind, amount, reason, created_at
+       FROM invoice_adjustments WHERE invoice_id IN (?) ORDER BY created_at ASC`,
+      [ids]
+    );
+
+    const adjustedByInvoice = new Map();
+    for (const adjustment of adjustments) {
+      const list = adjustedByInvoice.get(adjustment.invoice_id) || [];
+      list.push({ ...adjustment, amount: Number(adjustment.amount) });
+      adjustedByInvoice.set(adjustment.invoice_id, list);
+    }
+
     invoices.forEach((invoice) => {
       invoice.payments = byInvoice.get(invoice.id) || [];
+      invoice.declarations = declaredByInvoice.get(invoice.id) || [];
+      // A late fee is a charge the resident is entitled to see explained rather
+      // than discovering their bill grew overnight.
+      invoice.adjustments = adjustedByInvoice.get(invoice.id) || [];
     });
   }
 
@@ -349,3 +379,98 @@ exports.cancelPass = withUnit(async (req, res, unit) => {
 });
 
 exports.getActiveUnit = getActiveUnit;
+
+/**
+ * 9. Tell the building about a payment already made.
+ *
+ * The friction this removes is real: a resident pays by UPI in ten seconds and
+ * then spends a week reminding somebody to write it down. A declaration is
+ * their side of that conversation. It never moves the balance on its own, so
+ * nothing here can be used to mark a flat paid without an admin agreeing.
+ */
+exports.declarePayment = withUnit(async (req, res, unit) => {
+  const { invoice_id: invoiceId, amount, mode, reference, paid_on: paidOn, note } = req.body;
+
+  const [invoices] = await db.execute(
+    'SELECT * FROM invoices WHERE id = ? AND unit_id = ?',
+    [invoiceId, unit.unit_id]
+  );
+
+  if (invoices.length === 0) {
+    return res.status(404).json({ success: false, message: 'That bill is not one of yours.' });
+  }
+
+  const invoice = invoices[0];
+  const balancePaise = toPaise(invoice.total_amount) - toPaise(invoice.amount_paid);
+
+  if (balancePaise <= 0) {
+    return res.status(409).json({ success: false, message: 'That bill is already settled.' });
+  }
+
+  const amountPaise = toPaise(amount);
+
+  if (amountPaise > balancePaise) {
+    return res.status(400).json({
+      success: false,
+      message: `That is more than the ${toRupees(balancePaise)} outstanding on this bill.`
+    });
+  }
+
+  // One open declaration per bill. A second one is a resident wondering whether
+  // the first went through, not a second payment.
+  const [pending] = await db.execute(
+    "SELECT id FROM payment_declarations WHERE invoice_id = ? AND status = 'PENDING'",
+    [invoiceId]
+  );
+
+  if (pending.length > 0) {
+    return res.status(409).json({
+      success: false,
+      message: 'You have already told us about a payment on this bill. It is waiting to be confirmed.'
+    });
+  }
+
+  const [result] = await db.execute(
+    `INSERT INTO payment_declarations
+      (invoice_id, unit_id, declared_by_id, amount, mode, reference, paid_on, note)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      invoiceId,
+      unit.unit_id,
+      req.user.id,
+      toRupees(amountPaise),
+      mode || 'UPI',
+      reference || null,
+      paidOn || new Date().toISOString().slice(0, 10),
+      note || null
+    ]
+  );
+
+  await createNotification({
+    title: `Payment declared by flat ${unit.number}`,
+    message: `${toRupees(amountPaise)} by ${mode || 'UPI'}${reference ? `, reference ${reference}` : ''}. Confirm it against the account.`,
+    target_role: 'ADMIN',
+    type: 'BILLING'
+  });
+
+  res.json({
+    success: true,
+    message: 'Thank you. The building will confirm it against the account.',
+    data: { id: result.insertId, status: 'PENDING' }
+  });
+});
+
+/** 10. Every payment this flat has declared, and what came of it. */
+exports.getDeclarations = withUnit(async (req, res, unit) => {
+  const [rows] = await db.execute(
+    `SELECT d.*, i.period_month
+     FROM payment_declarations d
+     JOIN invoices i ON d.invoice_id = i.id
+     WHERE d.unit_id = ?
+     ORDER BY d.created_at DESC
+     LIMIT 50`,
+    [unit.unit_id]
+  );
+
+  res.json({ success: true, data: rows.map((row) => ({ ...row, amount: Number(row.amount) })) });
+});

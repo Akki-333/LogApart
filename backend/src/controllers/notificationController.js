@@ -9,21 +9,31 @@ const db = require('../config/db');
  */
 
 // Helper to create notifications internally from any controller.
-exports.createNotification = async ({ title, message, target_role = 'ALL', type = 'INFO' }) => {
+exports.createNotification = async ({
+  title, message, target_role = 'ALL', target_user_id = null, type = 'INFO'
+}) => {
   try {
     await db.execute(
-      'INSERT INTO notifications (title, message, target_role, type) VALUES (?, ?, ?, ?)',
-      [title, message, target_role, type]
+      'INSERT INTO notifications (title, message, target_role, target_user_id, type) VALUES (?, ?, ?, ?, ?)',
+      [title, message, target_role, target_user_id, type]
     );
   } catch (error) {
     console.error('Error creating notification:', error);
   }
 };
 
-// Rows addressed to this user's role. The parentheses matter: AND binds tighter
-// than OR, so without them an appended condition would apply only to the
-// role-matched half and every 'ALL' row would slip through it.
-const VISIBLE = `WHERE (n.target_role = 'ALL' OR n.target_role = ?)`;
+// Rows addressed to this user's role, plus rows addressed to them by name. A
+// row with a named recipient is theirs alone, so a dues reminder to one flat is
+// never a notice to the building.
+//
+// The parentheses matter: AND binds tighter than OR, so without them an
+// appended condition would apply only to the last branch and every 'ALL' row
+// would slip through it. Parameters are role then user id.
+const VISIBLE = `
+  WHERE (
+    (n.target_user_id IS NULL AND (n.target_role = 'ALL' OR n.target_role = ?))
+    OR n.target_user_id = ?
+  )`;
 
 // 1. The bell: recent notifications for this role, flagged read for this person.
 exports.getNotifications = async (req, res) => {
@@ -36,7 +46,7 @@ exports.getNotifications = async (req, res) => {
        ${VISIBLE}
        ORDER BY n.created_at DESC
        LIMIT 20`,
-      [req.user.id, req.user.role]
+      [req.user.id, req.user.role, req.user.id]
     );
 
     const data = rows.map((row) => ({ ...row, is_read: Boolean(row.is_read) }));
@@ -48,7 +58,7 @@ exports.getNotifications = async (req, res) => {
        FROM notifications n
        LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = ?
        ${VISIBLE} AND r.id IS NULL`,
-      [req.user.id, req.user.role]
+      [req.user.id, req.user.role, req.user.id]
     );
 
     res.json({ success: true, data, unreadCount: Number(unread.count) });
@@ -63,7 +73,7 @@ exports.markAsRead = async (req, res) => {
   try {
     const [rows] = await db.execute(
       `SELECT id FROM notifications n ${VISIBLE} AND n.id = ?`,
-      [req.user.role, req.params.id]
+      [req.user.role, req.user.id, req.params.id]
     );
 
     if (rows.length === 0) {
@@ -88,7 +98,7 @@ exports.markAllAsRead = async (req, res) => {
     const [result] = await db.execute(
       `INSERT IGNORE INTO notification_reads (notification_id, user_id)
        SELECT n.id, ? FROM notifications n ${VISIBLE}`,
-      [req.user.id, req.user.role]
+      [req.user.id, req.user.role, req.user.id]
     );
 
     res.json({ success: true, message: 'All notifications marked as read', data: { marked: result.affectedRows } });
