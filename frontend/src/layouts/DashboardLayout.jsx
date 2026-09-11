@@ -7,6 +7,7 @@ import {
   Users, 
   Wrench, 
   ShieldCheck, 
+  Wallet,
   LogOut,
   Menu
 } from 'lucide-react';
@@ -24,6 +25,7 @@ export default function DashboardLayout() {
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     { name: 'Residents', icon: Users, path: '/admin/residents' },
+    { name: 'Finances', icon: Wallet, path: '/admin/billing' },
     { name: 'Maintenance', icon: Wrench, path: '/admin/maintenance' },
     { name: 'Security', icon: ShieldCheck, path: '/admin/security' },
   ];

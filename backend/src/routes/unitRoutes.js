@@ -11,6 +11,7 @@ router.get('/', requireRole('ADMIN', 'SECURITY'), unitController.getUnits);
 // Resident lifecycle is administrative only.
 router.post('/assign', requireRole('ADMIN'), unitController.assignResident);
 router.put('/:unit_id/resident', requireRole('ADMIN'), unitController.updateResident);
+router.get('/:unit_id/dues', requireRole('ADMIN'), unitController.getUnitDues);
 router.post('/vacate', requireRole('ADMIN'), unitController.vacateUnit);
 
 module.exports = router;

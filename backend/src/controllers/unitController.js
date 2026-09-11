@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const { outstandingForUnit } = require('./billingController');
 
 // One-time password handed to a newly onboarded resident. They are forced to
 // replace it at first login, so it never becomes a shared building password.
@@ -167,29 +168,129 @@ exports.updateResident = async (req, res) => {
   }
 };
 
-// 4. Vacate unit & generate NOC data
+// 4. Vacate unit, check dues, and issue a stored NOC.
+//
+// The clearance certificate used to assert zero dues as fixed text. It now
+// refuses to issue while a balance is open, unless an admin records an explicit
+// waiver and a reason, which is kept on the certificate.
 exports.vacateUnit = async (req, res) => {
-  const { unit_id, move_out_date } = req.body;
+  const { unit_id: unitId, move_out_date: moveOutDate, waive_dues: waiveDues, waiver_reason: waiverReason } = req.body;
 
-  if (!unit_id) {
+  if (!unitId) {
     return res.status(400).json({ success: false, message: 'Unit ID is required.' });
   }
 
-  try {
-    const outDate = move_out_date ? new Date(move_out_date) : new Date();
+  const connection = await db.getConnection();
 
-    // Mark active resident inactive with move out date
-    await db.execute(
-      'UPDATE residents SET is_active = false, move_out_date = ? WHERE unit_id = ? AND is_active = true',
-      [outDate, unit_id]
+  try {
+    await connection.beginTransaction();
+
+    const [unitRows] = await connection.execute('SELECT id, number FROM units WHERE id = ?', [unitId]);
+
+    if (unitRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'Unit not found' });
+    }
+
+    const [residentRows] = await connection.execute(
+      `SELECT r.id AS resident_id, usr.id AS user_id, usr.name
+       FROM residents r
+       JOIN users usr ON r.user_id = usr.id
+       WHERE r.unit_id = ? AND r.is_active = true`,
+      [unitId]
     );
 
-    // Mark unit as vacant
-    await db.execute('UPDATE units SET is_occupied = false WHERE id = ?', [unit_id]);
+    if (residentRows.length === 0) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: 'That flat has no active resident to move out.' });
+    }
 
-    res.json({ success: true, message: 'Unit vacated successfully and marked vacant.' });
+    const resident = residentRows[0];
+    const dues = await outstandingForUnit(unitId, connection);
+
+    if (dues.balance > 0 && !waiveDues) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        code: 'OUTSTANDING_DUES',
+        message: `Flat ${unitRows[0].number} has ${dues.balance} outstanding across ${dues.open_invoices} invoice(s). Settle the dues or record a waiver.`,
+        data: dues
+      });
+    }
+
+    if (dues.balance > 0 && waiveDues && !String(waiverReason || '').trim()) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: 'A dues waiver needs a written reason.' });
+    }
+
+    const outDate = moveOutDate || new Date().toISOString().slice(0, 10);
+
+    await connection.execute(
+      'UPDATE residents SET is_active = false, move_out_date = ? WHERE unit_id = ? AND is_active = true',
+      [outDate, unitId]
+    );
+
+    await connection.execute('UPDATE units SET is_occupied = false WHERE id = ?', [unitId]);
+
+    // Certificate numbers run per calendar year: NOC-2026-0001.
+    const year = new Date(outDate).getFullYear();
+    const [[counted]] = await connection.execute(
+      'SELECT COUNT(*) AS issued FROM noc_certificates WHERE YEAR(move_out_date) = ?',
+      [year]
+    );
+    const certificateNumber = `NOC-${year}-${String(Number(counted.issued) + 1).padStart(4, '0')}`;
+
+    await connection.execute(
+      `INSERT INTO noc_certificates
+        (certificate_number, unit_id, unit_number, resident_user_id, resident_name,
+         move_out_date, outstanding_at_issue, dues_waived, waiver_reason, issued_by_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        certificateNumber,
+        unitId,
+        unitRows[0].number,
+        resident.user_id,
+        resident.name,
+        outDate,
+        dues.balance,
+        dues.balance > 0 ? 1 : 0,
+        dues.balance > 0 ? String(waiverReason).trim() : null,
+        req.user.id
+      ]
+    );
+
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: 'Unit vacated and clearance certificate issued.',
+      data: {
+        certificate_number: certificateNumber,
+        unit_number: unitRows[0].number,
+        resident_name: resident.name,
+        move_out_date: outDate,
+        outstanding_at_issue: dues.balance,
+        dues_waived: dues.balance > 0,
+        waiver_reason: dues.balance > 0 ? String(waiverReason).trim() : null
+      }
+    });
   } catch (error) {
+    await connection.rollback();
     console.error('Error vacating unit:', error);
     res.status(500).json({ success: false, message: 'Server error vacating unit.' });
+  } finally {
+    connection.release();
+  }
+};
+
+// 5. Outstanding dues for one flat, used by the move-out screen before it asks
+// the admin to confirm.
+exports.getUnitDues = async (req, res) => {
+  try {
+    const dues = await outstandingForUnit(req.params.unit_id);
+    res.json({ success: true, data: dues });
+  } catch (error) {
+    console.error('Error fetching unit dues:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching unit dues.' });
   }
 };

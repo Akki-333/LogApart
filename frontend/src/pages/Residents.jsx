@@ -27,6 +27,8 @@ export default function Residents() {
   const [loading, setLoading] = useState(true);
   
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [gridMode, setGridMode] = useState('OCCUPANCY'); // 'OCCUPANCY' | 'FINANCE'
+  const [balances, setBalances] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'OCCUPIED' | 'VACANT' | 'OWNER' | 'TENANT'
 
@@ -42,6 +44,7 @@ export default function Residents() {
 
   useEffect(() => {
     fetchUnits();
+    fetchBalances();
   }, [token]);
 
   const fetchUnits = async () => {
@@ -54,6 +57,16 @@ export default function Residents() {
       console.error('Failed to fetch units', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Outstanding dues per unit, used to colour the grid in finance mode.
+  const fetchBalances = async () => {
+    try {
+      const response = await api.get('/api/billing/unit-balances');
+      setBalances(response.data.data || {});
+    } catch (error) {
+      console.error('Failed to fetch unit balances', error);
     }
   };
 
@@ -84,6 +97,7 @@ export default function Residents() {
     try {
       const response = await api.post('/api/units/assign', formData);
       setIsOnboardOpen(false);
+      fetchBalances();
 
       // Only returned when a brand new account was created. An existing user
       // keeps the password they already have.
@@ -111,13 +125,26 @@ export default function Residents() {
     }
   };
 
-  const handleVacateSubmit = async (unitId, moveOutDate) => {
+  // Returns the outcome rather than closing, so the modal can show the issued
+  // certificate or explain why the move-out was refused.
+  const handleVacateSubmit = async (unitId, moveOutDate, options = {}) => {
     try {
-      await api.post('/api/units/vacate', { unit_id: unitId, move_out_date: moveOutDate });
-      setIsVacateOpen(false);
+      const response = await api.post('/api/units/vacate', {
+        unit_id: unitId,
+        move_out_date: moveOutDate,
+        waive_dues: options.waive_dues || false,
+        waiver_reason: options.waiver_reason || ''
+      });
+
       fetchUnits();
+      fetchBalances();
+
+      return { success: true, certificate: response.data.data };
     } catch (err) {
-      alert(err.response?.data?.message || 'Error vacating unit');
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Error vacating unit'
+      };
     }
   };
 
@@ -239,6 +266,30 @@ export default function Residents() {
             </select>
           </div>
 
+          {/* Heatmap Mode: occupancy or money owed */}
+          {viewMode === 'grid' && (
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                onClick={() => setGridMode('OCCUPANCY')}
+                className={`flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  gridMode === 'OCCUPANCY' ? 'bg-white text-teal-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5 mr-1.5" />
+                Occupancy
+              </button>
+              <button
+                onClick={() => setGridMode('FINANCE')}
+                className={`flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  gridMode === 'FINANCE' ? 'bg-white text-rose-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Wallet className="w-3.5 h-3.5 mr-1.5" />
+                Dues
+              </button>
+            </div>
+          )}
+
           {/* View Mode Toggle */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
@@ -274,11 +325,13 @@ export default function Residents() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
         </div>
       ) : viewMode === 'grid' ? (
-        <BuildingGrid 
-          data={unitsData} 
-          onUnitClick={handleUnitClick} 
+        <BuildingGrid
+          data={unitsData}
+          onUnitClick={handleUnitClick}
           searchTerm={searchTerm}
           filterStatus={filterStatus}
+          mode={gridMode}
+          balances={balances}
         />
       ) : (
         <ResidentsTable

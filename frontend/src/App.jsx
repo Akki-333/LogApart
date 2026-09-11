@@ -11,6 +11,7 @@ import ResidentLayout from './layouts/ResidentLayout';
 import DashboardHome from './pages/DashboardHome';
 import Residents from './pages/Residents';
 import Maintenance from './pages/Maintenance';
+import Billing from './pages/Billing';
 import Security from './pages/Security';
 import ResidentHome from './pages/resident/ResidentHome';
 
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardHome />} />
         <Route path="residents" element={<Residents />} />
+        <Route path="billing" element={<Billing />} />
         <Route path="maintenance" element={<Maintenance />} />
         {/* Read-only by design; the API refuses gate writes from an admin. */}
         <Route path="security" element={<Security readOnly={true} />} />

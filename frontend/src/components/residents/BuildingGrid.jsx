@@ -1,9 +1,18 @@
 import { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import { formatRupeesShort } from '../../lib/money';
 import { Home, User } from 'lucide-react';
 
-export default function BuildingGrid({ data, onUnitClick, searchTerm = '', filterStatus = 'ALL' }) {
+export default function BuildingGrid({
+  data,
+  onUnitClick,
+  searchTerm = '',
+  filterStatus = 'ALL',
+  mode = 'OCCUPANCY',
+  balances = {}
+}) {
   const { user } = useContext(AuthContext);
+  const isFinance = mode === 'FINANCE';
 
   if (!data || Object.keys(data).length === 0) {
     return (
@@ -54,12 +63,31 @@ export default function BuildingGrid({ data, onUnitClick, searchTerm = '', filte
             </div>
 
             <div className="hidden sm:flex items-center gap-4 text-xs font-semibold">
-              <span className="flex items-center gap-1.5 text-teal-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span> Occupied Flat
-              </span>
-              <span className="flex items-center gap-1.5 text-slate-500">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Vacant Flat
-              </span>
+              {isFinance ? (
+                <>
+                  <span className="flex items-center gap-1.5 text-emerald-700">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Paid up
+                  </span>
+                  <span className="flex items-center gap-1.5 text-amber-700">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Due soon
+                  </span>
+                  <span className="flex items-center gap-1.5 text-rose-700">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Overdue
+                  </span>
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Vacant
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="flex items-center gap-1.5 text-teal-700">
+                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span> Occupied Flat
+                  </span>
+                  <span className="flex items-center gap-1.5 text-slate-500">
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Vacant Flat
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -86,37 +114,77 @@ export default function BuildingGrid({ data, onUnitClick, searchTerm = '', filte
                 <div className="flex flex-wrap gap-3.5 flex-1">
                   {units.map((unit) => {
                     const matched = isMatch(unit);
+                    const dues = balances[unit.unit_id];
+
+                    // In finance mode a flat is red once it is past its due date,
+                    // amber while it owes but is still in time, green when clear.
+                    const financeTone = !unit.is_occupied
+                      ? 'bg-white border-slate-200 hover:bg-slate-100'
+                      : !dues
+                        ? 'bg-emerald-50/80 border-emerald-200 hover:bg-emerald-100/80 hover:border-emerald-400'
+                        : dues.days_overdue > 0
+                          ? 'bg-rose-50/80 border-rose-300 hover:bg-rose-100/80 hover:border-rose-400'
+                          : 'bg-amber-50/80 border-amber-300 hover:bg-amber-100/80 hover:border-amber-400';
+
+                    const occupancyTone = unit.is_occupied
+                      ? 'bg-teal-50/80 border-teal-200 hover:bg-teal-100/80 hover:border-teal-400'
+                      : 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300';
+
                     return (
                       <button
                         key={unit.unit_id}
                         onClick={() => onUnitClick(unit)}
                         className={`
                           relative group flex flex-col items-center justify-center w-24 h-24 rounded-2xl border transition-all duration-200 shadow-xs
-                          ${!matched 
-                            ? 'opacity-30 grayscale' 
-                            : unit.is_occupied 
-                              ? 'bg-teal-50/80 border-teal-200 hover:bg-teal-100/80 hover:border-teal-400 hover:shadow-md hover:-translate-y-0.5' 
-                              : 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300 hover:shadow-md hover:-translate-y-0.5'
+                          ${!matched
+                            ? 'opacity-30 grayscale'
+                            : `${isFinance ? financeTone : occupancyTone} hover:shadow-md hover:-translate-y-0.5`
                           }
                         `}
                       >
                         {/* Flat Number */}
-                        <span className={`text-xl font-black ${unit.is_occupied ? 'text-teal-900' : 'text-slate-600'}`}>
+                        <span className={`text-xl font-black ${
+                          !unit.is_occupied
+                            ? 'text-slate-600'
+                            : isFinance
+                              ? (!dues ? 'text-emerald-900' : dues.days_overdue > 0 ? 'text-rose-900' : 'text-amber-900')
+                              : 'text-teal-900'
+                        }`}>
                           {unit.number}
                         </span>
 
-                        {/* Status Label */}
-                        <span className={`text-[11px] mt-1 font-bold ${
-                          unit.is_occupied ? 'text-teal-600' : 'text-slate-400'
-                        }`}>
-                          {unit.is_occupied ? (unit.type || 'Occupied') : 'Vacant'}
-                        </span>
+                        {/* Status Label. In finance mode this carries the balance. */}
+                        {isFinance ? (
+                          <span className={`text-[11px] mt-1 font-bold ${
+                            !unit.is_occupied
+                              ? 'text-slate-400'
+                              : !dues
+                                ? 'text-emerald-600'
+                                : dues.days_overdue > 0
+                                  ? 'text-rose-600'
+                                  : 'text-amber-600'
+                          }`}>
+                            {!unit.is_occupied ? 'Vacant' : !dues ? 'Clear' : formatRupeesShort(dues.balance)}
+                          </span>
+                        ) : (
+                          <span className={`text-[11px] mt-1 font-bold ${
+                            unit.is_occupied ? 'text-teal-600' : 'text-slate-400'
+                          }`}>
+                            {unit.is_occupied ? (unit.type || 'Occupied') : 'Vacant'}
+                          </span>
+                        )}
                         
                         {/* Occupied Tooltip */}
                         {unit.is_occupied && user?.role !== 'SECURITY' && (
                           <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs font-semibold py-1 px-2.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-20 shadow-xl border border-slate-700 flex items-center gap-1">
                             <User className="w-3 h-3 text-teal-400" />
                             {unit.resident_name || 'Resident'}
+                            {isFinance && dues && (
+                              <span className="text-rose-300">
+                                {dues.open_invoices} unpaid
+                                {dues.days_overdue > 0 ? `, ${dues.days_overdue}d late` : ''}
+                              </span>
+                            )}
                           </div>
                         )}
                       </button>

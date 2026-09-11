@@ -102,6 +102,7 @@ and each route declares the roles it accepts.
 | `GET /api/units` | ✅ | ✅ | ❌ |
 | `POST /api/units/assign`, `/vacate`, resident edits | ✅ | ❌ | ❌ |
 | `GET /api/tickets` and ticket writes | ✅ | ❌ | ❌ |
+| `/api/billing/*` runs, invoices, payments | ✅ | ❌ | ❌ |
 | `GET /api/security/visitors` | ✅ | ✅ | ❌ |
 | Gate writes: log, edit, checkout, delete | ❌ | ✅ | ❌ |
 | `GET /api/notifications` | ✅ | ✅ | ✅ |
@@ -121,15 +122,50 @@ those users to the change-password screen and nowhere else.
 
 ---
 
+## 💰 Billing Engine
+
+Dues are raised a month at a time. An admin sets the maintenance charge and
+enters what the building was billed for shared electricity and water, and
+LogApart raises one invoice per occupied flat.
+
+- **Charges are itemised.** Maintenance, the common electricity share and the
+  common water share are stored separately, so a resident sees what they are
+  paying for rather than one opaque figure.
+- **Splits reconcile exactly.** All arithmetic runs in integer paise, and the
+  leftover paise from a division are handed out one at a time to the largest
+  flats. A shared bill always sums back to the amount that went in.
+- **Two bases.** Maintenance can be a flat rate per home or a rate per square
+  foot, and a common bill can be split equally or in proportion to carpet area.
+  A per-square-foot basis is refused when any flat has no recorded area, rather
+  than guessing and quietly misbilling someone.
+- **Nothing is written until it is seen.** The generate form prices every line
+  on the server and shows the full table before it will commit.
+- **A ledger, not a gateway.** Dues are settled over UPI, cash, transfer or
+  cheque and then recorded here, with mode, reference and date. Part payments
+  are supported, and a payment that would exceed the balance is refused.
+- **Overdue is derived, never stored.** It is computed from the due date on
+  read, so no nightly job is needed to keep it true.
+- **Clearance is gated on the ledger.** A move-out certificate used to assert
+  zero dues as fixed text. It now reads the real balance and refuses to issue
+  while one is open, unless an admin records an explicit waiver and reason.
+  Certificates are stored with a number, the amount outstanding at issue, and
+  any waiver.
+
+The heatmap on the Residents screen has a Dues mode: green for clear, amber for
+owing but still in time, red once past the due date.
+
+---
+
 ## 🗺 Roadmap
 
 - **Phase 0 — Foundation (done).** Role enforcement in the API, schema and seed
   committed to the repository, environment-driven configuration, one-time
   passwords, and a resident portal shell so residents stop landing on the admin
   dashboard.
-- **Phase 1 — Billing engine.** Monthly dues runs, pro-rata splitting of the
-  common electricity and water bill, a payment ledger, a collection dashboard, a
-  financial mode for the building heatmap, and NOCs gated on real outstanding dues.
+- **Phase 1 — Billing engine (done).** Monthly dues runs, pro-rata splitting of
+  the common electricity and water bill, a payment ledger, a collection dashboard
+  with aging buckets, a dues mode for the building heatmap, and clearance
+  certificates gated on real outstanding dues.
 - **Phase 2 — Resident portal.** My dues and receipts, raising and tracking
   structural issues, gate activity for your own flat, and pre-approved visitor
   passes.
