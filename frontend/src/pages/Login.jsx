@@ -1,15 +1,22 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { homePathFor } from '../lib/roles';
 import { Building2, Mail, Lock, ArrowRight } from 'lucide-react';
 
 export default function Login() {
-  const { login } = useContext(AuthContext);
+  const { login, token, user, loading } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@apartadmin.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Someone arriving with a live session should not sit on the login screen.
+  useEffect(() => {
+    if (loading || !token || !user) return;
+    navigate(user.must_change_password ? '/change-password' : homePathFor(user.role), { replace: true });
+  }, [loading, token, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,11 +26,10 @@ export default function Login() {
     const result = await login(email, password);
     
     if (result.success) {
-      if (result.user.role === 'SECURITY') {
-        navigate('/guard/gate');
-      } else {
-        navigate('/admin/dashboard');
-      }
+      const destination = result.user.must_change_password
+        ? '/change-password'
+        : homePathFor(result.user.role);
+      navigate(destination, { replace: true });
     } else {
       setError(result.message);
       setIsLoading(false);

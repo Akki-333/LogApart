@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import LogVisitorModal from '../components/security/LogVisitorModal';
 import EditVisitorModal from '../components/security/EditVisitorModal';
@@ -42,9 +42,7 @@ export default function Security({ readOnly = false }) {
   const fetchVisitors = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/security/visitors', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/api/security/visitors');
       setVisitors(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch visitors', error);
@@ -55,9 +53,7 @@ export default function Security({ readOnly = false }) {
 
   const fetchUnitsForDropdown = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/units', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/api/units');
       const flatUnits = [];
       Object.values(response.data.data).forEach(block => {
         Object.values(block.floors).forEach(floorUnits => {
@@ -73,10 +69,7 @@ export default function Security({ readOnly = false }) {
   const handleCheckout = async (visitorId) => {
     if (!window.confirm("Check out this visitor and record exit time?")) return;
     try {
-      await axios.put(`http://localhost:5000/api/security/visitors/${visitorId}/checkout`, 
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/api/security/visitors/${visitorId}/checkout`, {});
       fetchVisitors();
     } catch (error) {
       alert(error.response?.data?.message || 'Error checking out visitor');
@@ -85,10 +78,7 @@ export default function Security({ readOnly = false }) {
 
   const handleLogVisitor = async (formData) => {
     try {
-      await axios.post('http://localhost:5000/api/security/visitors', 
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post('/api/security/visitors', formData);
       setIsLogModalOpen(false);
       fetchVisitors();
     } catch (error) {
@@ -98,10 +88,7 @@ export default function Security({ readOnly = false }) {
 
   const handleEditVisitor = async (visitorId, formData) => {
     try {
-      await axios.put(`http://localhost:5000/api/security/visitors/${visitorId}`, 
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/api/security/visitors/${visitorId}`, formData);
       setIsEditModalOpen(false);
       fetchVisitors();
     } catch (error) {
@@ -112,9 +99,7 @@ export default function Security({ readOnly = false }) {
   const handleDeleteVisitor = async (visitorId) => {
     if (!window.confirm("Are you sure you want to remove this gate entry? This cannot be undone.")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/security/visitors/${visitorId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/api/security/visitors/${visitorId}`);
       fetchVisitors();
     } catch (error) {
       alert(error.response?.data?.message || 'Error deleting visitor entry');

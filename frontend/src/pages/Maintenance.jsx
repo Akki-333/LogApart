@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import TicketKanban from '../components/maintenance/TicketKanban';
 import NewTicketModal from '../components/maintenance/NewTicketModal';
@@ -20,9 +20,7 @@ export default function Maintenance() {
   const fetchTickets = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/tickets', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/api/tickets');
       setTickets(response.data.data);
     } catch (error) {
       console.error('Failed to fetch tickets', error);
@@ -33,9 +31,7 @@ export default function Maintenance() {
 
   const fetchUnitsForDropdown = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/units', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/api/units');
       // Flatten the grouped units data for a simple dropdown
       const flatUnits = [];
       Object.values(response.data.data).forEach(block => {
@@ -51,10 +47,7 @@ export default function Maintenance() {
 
   const handleUpdateStatus = async (ticketId, newStatus) => {
     try {
-      await axios.put(`http://localhost:5000/api/tickets/${ticketId}`, 
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/api/tickets/${ticketId}`, { status: newStatus });
       // Refresh tickets
       fetchTickets();
     } catch (error) {
@@ -64,10 +57,7 @@ export default function Maintenance() {
 
   const handleCreateTicket = async (formData) => {
     try {
-      await axios.post('http://localhost:5000/api/tickets', 
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post('/api/tickets', formData);
       setIsModalOpen(false);
       fetchTickets();
     } catch (error) {

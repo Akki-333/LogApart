@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext, useRef } from 'react';
-import axios from 'axios';
+import api from '../../lib/api';
 import { AuthContext } from '../../context/AuthContext';
 import { Bell, ShieldCheck, Wrench, Check, Megaphone, Clock } from 'lucide-react';
 
@@ -30,9 +30,7 @@ export default function NotificationDropdown() {
   const fetchNotifications = async () => {
     if (!token) return;
     try {
-      const res = await axios.get('http://localhost:5000/api/notifications', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/notifications');
       if (res.data.success) {
         setNotifications(res.data.data);
         setUnreadCount(res.data.unreadCount);
@@ -45,9 +43,7 @@ export default function NotificationDropdown() {
   const handleMarkAsRead = async (id, e) => {
     e.stopPropagation();
     try {
-      await axios.put(`http://localhost:5000/api/notifications/${id}/read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/api/notifications/${id}/read`, {});
       fetchNotifications();
     } catch (err) {
       console.error('Error marking as read:', err);
@@ -56,9 +52,7 @@ export default function NotificationDropdown() {
 
   const handleMarkAllRead = async () => {
     try {
-      await axios.put('http://localhost:5000/api/notifications/read-all', {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put('/api/notifications/read-all', {});
       fetchNotifications();
     } catch (err) {
       console.error('Error marking all as read:', err);

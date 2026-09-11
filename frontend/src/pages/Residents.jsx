@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import BuildingGrid from '../components/residents/BuildingGrid';
 import ResidentsTable from '../components/residents/ResidentsTable';
@@ -7,6 +7,7 @@ import UnitSlideOut from '../components/residents/UnitSlideOut';
 import OnboardResidentModal from '../components/residents/OnboardResidentModal';
 import EditResidentModal from '../components/residents/EditResidentModal';
 import VacateNocModal from '../components/residents/VacateNocModal';
+import TempPasswordDialog from '../components/residents/TempPasswordDialog';
 import { 
   LayoutGrid, 
   List, 
@@ -36,6 +37,9 @@ export default function Residents() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isVacateOpen, setIsVacateOpen] = useState(false);
 
+  // Holds the one-time password for a freshly created account, shown once.
+  const [newCredentials, setNewCredentials] = useState(null);
+
   useEffect(() => {
     fetchUnits();
   }, [token]);
@@ -43,9 +47,7 @@ export default function Residents() {
   const fetchUnits = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/units', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/api/units');
       setUnitsData(response.data.data);
       setFlatList(response.data.flatList || []);
     } catch (error) {
@@ -80,10 +82,19 @@ export default function Residents() {
   // API Callbacks
   const handleAssignSubmit = async (formData) => {
     try {
-      await axios.post('http://localhost:5000/api/units/assign', formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.post('/api/units/assign', formData);
       setIsOnboardOpen(false);
+
+      // Only returned when a brand new account was created. An existing user
+      // keeps the password they already have.
+      if (response.data.temp_password) {
+        setNewCredentials({
+          name: formData.name,
+          email: formData.email,
+          password: response.data.temp_password
+        });
+      }
+
       fetchUnits();
     } catch (err) {
       alert(err.response?.data?.message || 'Error assigning resident');
@@ -92,9 +103,7 @@ export default function Residents() {
 
   const handleEditSubmit = async (unitId, formData) => {
     try {
-      await axios.put(`http://localhost:5000/api/units/${unitId}/resident`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.put(`/api/units/${unitId}/resident`, formData);
       setIsEditOpen(false);
       fetchUnits();
     } catch (err) {
@@ -104,9 +113,7 @@ export default function Residents() {
 
   const handleVacateSubmit = async (unitId, moveOutDate) => {
     try {
-      await axios.post('http://localhost:5000/api/units/vacate', { unit_id: unitId, move_out_date: moveOutDate }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.post('/api/units/vacate', { unit_id: unitId, move_out_date: moveOutDate });
       setIsVacateOpen(false);
       fetchUnits();
     } catch (err) {
@@ -313,6 +320,11 @@ export default function Residents() {
         onClose={() => setIsVacateOpen(false)}
         onConfirmVacate={handleVacateSubmit}
         unit={selectedUnit}
+      />
+
+      <TempPasswordDialog
+        credentials={newCredentials}
+        onClose={() => setNewCredentials(null)}
       />
 
     </div>

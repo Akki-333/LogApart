@@ -18,7 +18,7 @@ Designed with a focus on usability, it abandons the "one-size-fits-all" dashboar
 ## 🚀 Key Features (Phases 1-5)
 
 ### 1. Dual Portal Routing Engine
-The core routing engine securely parses JWT tokens and automatically routes users to their purpose-built portal based on their database role (`SUPER_ADMIN` vs `SECURITY`).
+The core routing engine securely parses JWT tokens and automatically routes users to their purpose-built portal based on their database role (`ADMIN`, `SECURITY`, `RESIDENT`).
 
 ### 2. Super Admin Portal (Command Center)
 Designed for the building President / Secretary to oversee operations.
@@ -40,34 +40,99 @@ Designed for iPad/Tablet usage at the main gate.
 - Node.js (v18+)
 - MySQL (v8.x) running locally
 
-### 1. Database Setup
-1. Open MySQL Workbench.
-2. Execute the setup SQL scripts to generate the `apartment_admin` database and tables (`users`, `units`, `maintenance_tickets`, `visitor_logs`).
-3. Ensure you have the required seed users for testing (e.g., `admin@apartadmin.com` and `guard@apartadmin.com`).
+### 1. Backend
 
-### 2. Backend Configuration
-1. Navigate to the backend directory: `cd backend`
-2. Install dependencies: `npm install`
-3. Configure your `.env` file with your MySQL credentials:
-   ```env
-   PORT=5000
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASSWORD=your_password
-   DB_NAME=apartment_admin
-   JWT_SECRET=your_jwt_secret
-   ```
-4. Start the API server: `npm run dev`
+```bash
+cd backend
+npm install
+cp .env.example .env
+```
 
-### 3. Frontend Configuration
-1. Navigate to the frontend directory: `cd frontend`
-2. Install dependencies: `npm install`
-3. Start the Vite development server: `npm run dev`
-4. Access the application at `http://localhost:5173`.
+Fill in your MySQL credentials in `.env`, then generate a signing secret:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
+
+Paste it as `JWT_SECRET`. The server refuses to start without one, so a missing
+secret fails loudly instead of silently falling back to a guessable default.
+
+Create the database, apply the schema, and seed it:
+
+```bash
+npm run db:setup
+```
+
+`db:setup` runs `db/schema.sql` and every file in `db/migrations` in order,
+tracking what it applied in the `schema_migrations` table, then seeds 20 units,
+an admin, and a guard. Both scripts are safe to re-run. The seed prints a
+one-time password for each account it creates, or you can set
+`SEED_ADMIN_PASSWORD` and `SEED_GUARD_PASSWORD` beforehand.
+
+Start the API:
+
+```bash
+npm run dev
+```
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+The app runs at `http://localhost:5173`. `VITE_API_URL` in `.env` points it at
+the API, and `CORS_ORIGIN` in the backend `.env` must match the origin the app
+is served from.
 
 ---
 
-## 🗺 Future Roadmap
-- **Phase 6:** Shared Utility Billing Engine (Automated bill splitting for EB/Water among occupied units).
-- **Phase 7:** Resident Portal (Self-service maintenance logging and invoice tracking).
-- **Phase 8:** Pre-Approved Visitor Workflows via Resident App.
+## 🔐 Roles & Access
+
+Authorisation is enforced by the API, not by the interface. Every route below
+`/api` other than `/api/auth` runs behind `protect` and `requirePasswordSet`,
+and each route declares the roles it accepts.
+
+| Endpoint group | Admin | Security | Resident |
+| :--- | :---: | :---: | :---: |
+| `GET /api/dashboard/stats` | ✅ | ❌ | ❌ |
+| `GET /api/units` | ✅ | ✅ | ❌ |
+| `POST /api/units/assign`, `/vacate`, resident edits | ✅ | ❌ | ❌ |
+| `GET /api/tickets` and ticket writes | ✅ | ❌ | ❌ |
+| `GET /api/security/visitors` | ✅ | ✅ | ❌ |
+| Gate writes: log, edit, checkout, delete | ❌ | ✅ | ❌ |
+| `GET /api/notifications` | ✅ | ✅ | ✅ |
+| `/api/auth/me`, `/api/auth/change-password` | ✅ | ✅ | ✅ |
+
+Admin gate access is read-only on purpose, so the portal cannot interfere with
+live tracking at the desk. The guard reads units only to fill the "visiting
+flat" dropdown.
+
+### One-time passwords
+
+Onboarding a resident creates their account with a randomly generated password,
+returned once to the admin as `temp_password` so it can be passed on. The account
+is flagged `must_change_password`, and until it is replaced the API answers every
+request outside `/api/auth` with `403 PASSWORD_CHANGE_REQUIRED`. The app routes
+those users to the change-password screen and nowhere else.
+
+---
+
+## 🗺 Roadmap
+
+- **Phase 0 — Foundation (done).** Role enforcement in the API, schema and seed
+  committed to the repository, environment-driven configuration, one-time
+  passwords, and a resident portal shell so residents stop landing on the admin
+  dashboard.
+- **Phase 1 — Billing engine.** Monthly dues runs, pro-rata splitting of the
+  common electricity and water bill, a payment ledger, a collection dashboard, a
+  financial mode for the building heatmap, and NOCs gated on real outstanding dues.
+- **Phase 2 — Resident portal.** My dues and receipts, raising and tracking
+  structural issues, gate activity for your own flat, and pre-approved visitor
+  passes.
+- **Phase 3 — Daily community value.** A daily helper registry for maids, cooks
+  and drivers, notices as a real module, parking bays and violations, and staff
+  attendance.

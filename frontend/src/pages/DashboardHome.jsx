@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import { 
   Building2, 
@@ -30,9 +30,7 @@ export default function DashboardHome() {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('http://localhost:5000/api/dashboard/stats', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/dashboard/stats');
       if (res.data.success) {
         setStats(res.data.data);
       }

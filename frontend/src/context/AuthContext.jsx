@@ -1,5 +1,5 @@
-import { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { createContext, useState, useEffect, useCallback } from 'react';
+import api from '../lib/api';
 
 export const AuthContext = createContext();
 
@@ -8,19 +8,20 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [loading, setLoading] = useState(true);
 
+  // True while the user still holds a one-time password. Every route except the
+  // change-password screen is closed to them until they replace it.
+  const mustChangePassword = Boolean(user?.must_change_password);
+
   useEffect(() => {
     const fetchUser = async () => {
       if (!token) {
+        setUser(null);
         setLoading(false);
         return;
       }
 
       try {
-        const response = await axios.get('http://localhost:5000/api/auth/me', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        const response = await api.get('/api/auth/me');
         setUser(response.data);
       } catch (error) {
         console.error('Error fetching user', error);
@@ -34,33 +35,69 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, [token]);
 
+  // The API client raises this when a request is refused for an unchanged
+  // password, which keeps a stale client in sync with the server.
+  useEffect(() => {
+    const onChangeRequired = () => {
+      setUser((current) => (current ? { ...current, must_change_password: true } : current));
+    };
+
+    window.addEventListener('logapart:password-change-required', onChangeRequired);
+    return () => window.removeEventListener('logapart:password-change-required', onChangeRequired);
+  }, []);
+
   const login = async (email, password) => {
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', {
-        email,
-        password
-      });
-      const { token, user } = response.data;
-      setToken(token);
-      setUser(user);
-      localStorage.setItem('token', token);
-      return { success: true, user: user };
+      const response = await api.post('/api/auth/login', { email, password });
+      const { token: nextToken, user: nextUser } = response.data;
+
+      localStorage.setItem('token', nextToken);
+      setToken(nextToken);
+      setUser(nextUser);
+
+      return { success: true, user: nextUser };
     } catch (error) {
-      return { 
-        success: false, 
-        message: error.response?.data?.message || 'Login failed' 
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Login failed'
       };
     }
   };
 
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    try {
+      const response = await api.post('/api/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+
+      const { token: nextToken, user: nextUser } = response.data;
+
+      // The server issues a fresh token, since the old one still says the
+      // password is unchanged.
+      localStorage.setItem('token', nextToken);
+      setToken(nextToken);
+      setUser(nextUser);
+
+      return { success: true, user: nextUser };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Could not update password'
+      };
+    }
+  }, []);
+
   const logout = () => {
+    localStorage.removeItem('token');
     setToken('');
     setUser(null);
-    localStorage.removeItem('token');
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, loading, mustChangePassword, login, changePassword, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
