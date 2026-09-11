@@ -8,6 +8,7 @@ import {
   Wrench, 
   ShieldCheck, 
   Wallet,
+  Users2,
   LogOut,
   Menu
 } from 'lucide-react';
@@ -27,6 +28,7 @@ export default function DashboardLayout() {
     { name: 'Residents', icon: Users, path: '/admin/residents' },
     { name: 'Finances', icon: Wallet, path: '/admin/billing' },
     { name: 'Maintenance', icon: Wrench, path: '/admin/maintenance' },
+    { name: 'Community', icon: Users2, path: '/admin/community' },
     { name: 'Security', icon: ShieldCheck, path: '/admin/security' },
   ];
 

@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Building2, Home, LogOut, KeyRound, Wallet, Wrench, ShieldCheck } from 'lucide-react';
+import { Building2, Home, LogOut, KeyRound, Wallet, Wrench, ShieldCheck, Megaphone } from 'lucide-react';
 import NotificationDropdown from '../components/common/NotificationDropdown';
 
 export default function ResidentLayout() {
@@ -17,7 +17,8 @@ export default function ResidentLayout() {
     { name: 'Home', icon: Home, path: '/resident/home' },
     { name: 'My Dues', icon: Wallet, path: '/resident/dues' },
     { name: 'Issues', icon: Wrench, path: '/resident/issues' },
-    { name: 'My Gate', icon: ShieldCheck, path: '/resident/gate' }
+    { name: 'My Gate', icon: ShieldCheck, path: '/resident/gate' },
+    { name: 'Notices', icon: Megaphone, path: '/resident/notices' }
   ];
 
   return (

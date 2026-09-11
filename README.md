@@ -105,6 +105,12 @@ and each route declares the roles it accepts.
 | `/api/billing/*` runs, invoices, payments | ✅ | ❌ | ❌ |
 | `/api/resident/*` own dues, issues, gate, passes | ❌ | ❌ | ✅ |
 | Gate pass lookup and admit | ❌ | ✅ | ❌ |
+| `GET /api/helpers`, check in and out | 👁️ | ✅ | 👁️ own flat |
+| Helper registry writes | ✅ | ❌ | ❌ |
+| `GET /api/notices`, acknowledge | ✅ | ✅ | ✅ |
+| Posting and withdrawing notices | ✅ | ❌ | ❌ |
+| Parking bays and violations | ✅ | 👁️ + log | ❌ |
+| `/api/staff/*` roster, attendance, pay | ✅ | ❌ | ❌ |
 | `GET /api/security/visitors` | ✅ | ✅ | ❌ |
 | Gate writes: log, edit, checkout, delete | ❌ | ✅ | ❌ |
 | `GET /api/notifications` | ✅ | ✅ | ✅ |
@@ -188,6 +194,47 @@ read aloud and typed at a gate.
 
 ---
 
+## 🧹 Community & Operations
+
+Four day-to-day modules share one admin screen, since an admin moves between
+them in a single sitting.
+
+### Daily helpers
+
+Maids, cooks, drivers and milkmen are recurring people, not visitors. One maid
+across three flats generates more gate events in a month than every delivery
+combined, so they live in their own registry rather than the visitor log.
+
+A helper is registered once and linked to every flat they work for. At the gate
+the guard taps their name to check them in, and each of those flats is told
+their help has arrived. Attendance is kept per arrival, not per flat.
+
+### Notices
+
+The community banner on the admin dashboard used to be a hardcoded paragraph
+about water tank cleaning. Notices are now real records with a life: they go up
+on a start date, optionally come down on an end date, can be addressed to
+everyone or just residents or just security, and readers can confirm they have
+seen them. The admin sees how many of the intended audience have.
+
+### Parking
+
+Bays are recorded against the building and allotted to flats, with the
+registered vehicle on each. A guard who finds an unfamiliar car logs it against
+the bay, and the response says how many times that plate has been reported
+before. The car registered to a bay can never be a violation in its own bay.
+
+### Staff and attendance
+
+Guards, cleaners and the maintenance crew sit in their own table rather than in
+`users`, because a cleaner belongs on the payroll without ever needing a login.
+Attendance is one row per person per day, and marking the same day again
+corrects it instead of adding a second row. Monthly pay is computed from
+attendance rather than stored: a half day counts half, leave counts full, an
+absence counts none. The figure is indicative and the admin still signs it off.
+
+---
+
 ## 🗺 Roadmap
 
 - **Phase 0 — Foundation (done).** Role enforcement in the API, schema and seed
@@ -201,6 +248,7 @@ read aloud and typed at a gate.
 - **Phase 2 — Resident portal (done).** Own dues and payment history, raising
   and tracking structural issues, gate activity for your own flat, and
   pre-approved visitor passes redeemed at the guard desk.
-- **Phase 3 — Daily community value.** A daily helper registry for maids, cooks
-  and drivers, notices as a real module, parking bays and violations, and staff
-  attendance.
+- **Phase 3 — Daily community value (done).** A daily helper registry with
+  one-tap gate check-in, notices as a real module replacing the hardcoded banner,
+  parking bays with repeat-offender tracking, and staff attendance driving
+  indicative monthly pay.

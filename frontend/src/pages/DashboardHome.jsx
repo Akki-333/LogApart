@@ -21,11 +21,24 @@ export default function DashboardHome() {
   const { token, user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchNotices();
   }, [token]);
+
+  // The community banner used to be a hardcoded paragraph about water tank
+  // cleaning. It now shows whatever notices are actually live.
+  const fetchNotices = async () => {
+    try {
+      const res = await api.get('/api/notices');
+      setNotices(res.data.data.slice(0, 3));
+    } catch (err) {
+      console.error('Failed to load notices:', err);
+    }
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -279,20 +292,52 @@ export default function DashboardHome() {
 
       </div>
 
-      {/* 4. Community Notice */}
-      <div className="bg-amber-50/50 border border-amber-200/70 rounded-2xl p-4 flex items-start gap-3.5 shadow-xs">
-        <div className="p-2 bg-amber-100 text-amber-800 rounded-xl shrink-0 mt-0.5">
-          <Megaphone className="w-4 h-4" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wider">Community Notice</h4>
-            <span className="text-[11px] font-semibold text-amber-700">Scheduled for Saturday</span>
+      {/* 4. Live community notices */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-amber-50 text-amber-700 rounded-xl">
+              <Megaphone className="w-4 h-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900">Community Notices</h3>
+              <p className="text-xs text-slate-400">What is currently on the board</p>
+            </div>
           </div>
-          <p className="text-xs text-amber-900/80 mt-0.5 leading-relaxed">
-            Overhead water tank cleaning is scheduled for this Saturday from 10:00 AM to 2:00 PM. Water supply will be temporarily paused during this window.
-          </p>
+          <button
+            onClick={() => navigate('/admin/community')}
+            className="text-xs font-bold text-amber-700 hover:underline flex items-center"
+          >
+            Manage <ArrowRight className="w-3.5 h-3.5 ml-1" />
+          </button>
         </div>
+
+        {notices.length === 0 ? (
+          <div className="text-center py-8 text-xs text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
+            Nothing posted right now. Water tank cleaning, power cuts and fumigation all go here.
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {notices.map((notice) => (
+              <div
+                key={notice.id}
+                className={`rounded-xl border p-3.5 ${
+                  notice.category === 'URGENT'
+                    ? 'bg-rose-50/60 border-rose-200'
+                    : 'bg-amber-50/50 border-amber-200/70'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-bold text-slate-900">{notice.title}</h4>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 shrink-0">
+                    {notice.category}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-700/90 mt-1 leading-relaxed line-clamp-2">{notice.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

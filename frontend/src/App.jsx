@@ -12,11 +12,13 @@ import DashboardHome from './pages/DashboardHome';
 import Residents from './pages/Residents';
 import Maintenance from './pages/Maintenance';
 import Billing from './pages/Billing';
+import Community from './pages/Community';
 import Security from './pages/Security';
 import ResidentHome from './pages/resident/ResidentHome';
 import ResidentDues from './pages/resident/ResidentDues';
 import ResidentIssues from './pages/resident/ResidentIssues';
 import ResidentGate from './pages/resident/ResidentGate';
+import ResidentNotices from './pages/resident/ResidentNotices';
 
 const Spinner = ({ dark = false }) => (
   <div className={`h-screen flex items-center justify-center ${dark ? 'bg-slate-900' : 'bg-slate-50'}`}>
@@ -72,6 +74,7 @@ function AppRoutes() {
         <Route path="residents" element={<Residents />} />
         <Route path="billing" element={<Billing />} />
         <Route path="maintenance" element={<Maintenance />} />
+        <Route path="community" element={<Community />} />
         {/* Read-only by design; the API refuses gate writes from an admin. */}
         <Route path="security" element={<Security readOnly={true} />} />
       </Route>
@@ -95,6 +98,7 @@ function AppRoutes() {
         <Route path="dues" element={<ResidentDues />} />
         <Route path="issues" element={<ResidentIssues />} />
         <Route path="gate" element={<ResidentGate />} />
+        <Route path="notices" element={<ResidentNotices />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

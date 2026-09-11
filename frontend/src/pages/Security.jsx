@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import LogVisitorModal from '../components/security/LogVisitorModal';
 import EditVisitorModal from '../components/security/EditVisitorModal';
 import PassLookup from '../components/security/PassLookup';
+import HelperCheckIn from '../components/security/HelperCheckIn';
 import { 
   ShieldCheck, 
   UserCheck, 
@@ -191,6 +192,15 @@ export default function Security({ readOnly = false }) {
           onAdmitted={(message) => {
             setBanner(message);
             fetchVisitors();
+            setTimeout(() => setBanner(''), 5000);
+          }}
+        />
+      )}
+
+      {!readOnly && (
+        <HelperCheckIn
+          onAction={(message) => {
+            setBanner(message);
             setTimeout(() => setBanner(''), 5000);
           }}
         />
