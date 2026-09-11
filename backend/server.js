@@ -23,6 +23,7 @@ const ticketRoutes = require('./src/routes/ticketRoutes');
 const securityRoutes = require('./src/routes/securityRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const notificationRoutes = require('./src/routes/notificationRoutes');
+const billingRoutes = require('./src/routes/billingRoutes');
 
 const { protect, requirePasswordSet } = require('./src/middleware/auth');
 
@@ -36,6 +37,7 @@ app.use('/api/tickets', guarded, ticketRoutes);
 app.use('/api/security', guarded, securityRoutes);
 app.use('/api/dashboard', guarded, dashboardRoutes);
 app.use('/api/notifications', guarded, notificationRoutes);
+app.use('/api/billing', guarded, billingRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
