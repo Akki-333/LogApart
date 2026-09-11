@@ -103,6 +103,8 @@ and each route declares the roles it accepts.
 | `POST /api/units/assign`, `/vacate`, resident edits | ✅ | ❌ | ❌ |
 | `GET /api/tickets` and ticket writes | ✅ | ❌ | ❌ |
 | `/api/billing/*` runs, invoices, payments | ✅ | ❌ | ❌ |
+| `/api/resident/*` own dues, issues, gate, passes | ❌ | ❌ | ✅ |
+| Gate pass lookup and admit | ❌ | ✅ | ❌ |
 | `GET /api/security/visitors` | ✅ | ✅ | ❌ |
 | Gate writes: log, edit, checkout, delete | ❌ | ✅ | ❌ |
 | `GET /api/notifications` | ✅ | ✅ | ✅ |
@@ -156,6 +158,36 @@ owing but still in time, red once past the due date.
 
 ---
 
+## 🏠 Resident Portal
+
+Residents get four screens, each scoped to their own flat by the server. Every
+handler resolves the caller's active unit before touching anything, so one
+resident can never read or change another's records.
+
+- **Home.** What they owe, open issues, and guests expected at the gate.
+- **My Dues.** Every bill raised for the flat, itemised into maintenance and
+  their share of the common electricity and water, with the payments recorded
+  against each one.
+- **Report an Issue.** Structural and shared problems only. Priority is set by
+  the admin rather than the reporter, so the SLA clock cannot be set from the
+  portal; everything arrives as MEDIUM for triage.
+- **My Gate.** Visitors logged against the flat, and pre-approved guest passes.
+
+### Pre-approved visitors
+
+A resident expecting someone creates a pass and gets a six-character code. The
+`visitor_logs` status enum already carried `PENDING`, `APPROVED` and `DENIED`
+from the original design but nothing wrote them; a pass is now an approved row
+raised before the visitor arrives.
+
+The guard types the code at the gate, sees who it belongs to and which flat
+approved it, and admits the guest without ringing the flat. A pass works once,
+cannot be reused or admitted twice, and the resident can cancel it any time
+before the visitor arrives. Codes leave out `O`, `0`, `I` and `1`, since they are
+read aloud and typed at a gate.
+
+---
+
 ## 🗺 Roadmap
 
 - **Phase 0 — Foundation (done).** Role enforcement in the API, schema and seed
@@ -166,9 +198,9 @@ owing but still in time, red once past the due date.
   the common electricity and water bill, a payment ledger, a collection dashboard
   with aging buckets, a dues mode for the building heatmap, and clearance
   certificates gated on real outstanding dues.
-- **Phase 2 — Resident portal.** My dues and receipts, raising and tracking
-  structural issues, gate activity for your own flat, and pre-approved visitor
-  passes.
+- **Phase 2 — Resident portal (done).** Own dues and payment history, raising
+  and tracking structural issues, gate activity for your own flat, and
+  pre-approved visitor passes redeemed at the guard desk.
 - **Phase 3 — Daily community value.** A daily helper registry for maids, cooks
   and drivers, notices as a real module, parking bays and violations, and staff
   attendance.

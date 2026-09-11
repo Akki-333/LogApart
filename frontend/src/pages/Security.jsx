@@ -3,6 +3,7 @@ import api from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import LogVisitorModal from '../components/security/LogVisitorModal';
 import EditVisitorModal from '../components/security/EditVisitorModal';
+import PassLookup from '../components/security/PassLookup';
 import { 
   ShieldCheck, 
   UserCheck, 
@@ -33,6 +34,7 @@ export default function Security({ readOnly = false }) {
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState(null);
+  const [banner, setBanner] = useState('');
 
   useEffect(() => {
     fetchVisitors();
@@ -182,6 +184,24 @@ export default function Security({ readOnly = false }) {
           )}
         </div>
       </div>
+
+      {/* Pre-approved visitor lookup. Guard desk only; admins are read-only. */}
+      {!readOnly && (
+        <PassLookup
+          onAdmitted={(message) => {
+            setBanner(message);
+            fetchVisitors();
+            setTimeout(() => setBanner(''), 5000);
+          }}
+        />
+      )}
+
+      {banner && (
+        <div className="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+          <UserCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+          <p className="text-sm font-semibold text-emerald-900">{banner}</p>
+        </div>
+      )}
 
       {/* 2. Top Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

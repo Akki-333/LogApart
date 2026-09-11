@@ -14,6 +14,9 @@ import Maintenance from './pages/Maintenance';
 import Billing from './pages/Billing';
 import Security from './pages/Security';
 import ResidentHome from './pages/resident/ResidentHome';
+import ResidentDues from './pages/resident/ResidentDues';
+import ResidentIssues from './pages/resident/ResidentIssues';
+import ResidentGate from './pages/resident/ResidentGate';
 
 const Spinner = ({ dark = false }) => (
   <div className={`h-screen flex items-center justify-center ${dark ? 'bg-slate-900' : 'bg-slate-50'}`}>
@@ -89,6 +92,9 @@ function AppRoutes() {
       >
         <Route index element={<Navigate to="/resident/home" replace />} />
         <Route path="home" element={<ResidentHome />} />
+        <Route path="dues" element={<ResidentDues />} />
+        <Route path="issues" element={<ResidentIssues />} />
+        <Route path="gate" element={<ResidentGate />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
