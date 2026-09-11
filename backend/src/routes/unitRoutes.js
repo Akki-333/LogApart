@@ -14,4 +14,7 @@ router.put('/:unit_id/resident', requireRole('ADMIN'), unitController.updateResi
 router.get('/:unit_id/dues', requireRole('ADMIN'), unitController.getUnitDues);
 router.post('/vacate', requireRole('ADMIN'), unitController.vacateUnit);
 
+// The only password recovery path there is, so it is admin-issued and audited.
+router.post('/:unit_id/resident/password', requireRole('ADMIN'), unitController.reissuePassword);
+
 module.exports = router;

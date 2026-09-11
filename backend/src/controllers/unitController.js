@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { outstandingForUnit } = require('./billingController');
+const { recordAudit } = require('../services/audit');
 
 // One-time password handed to a newly onboarded resident. They are forced to
 // replace it at first login, so it never becomes a shared building password.
@@ -68,7 +69,7 @@ exports.assignResident = async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const [unitCheck] = await connection.execute('SELECT id FROM units WHERE id = ?', [unit_id]);
+    const [unitCheck] = await connection.execute('SELECT id, number FROM units WHERE id = ?', [unit_id]);
     if (unitCheck.length === 0) {
       await connection.rollback();
       return res.status(404).json({ success: false, message: 'Unit not found' });
@@ -106,6 +107,14 @@ exports.assignResident = async (req, res) => {
       'UPDATE units SET is_occupied = true, type = ?, area = IFNULL(?, area) WHERE id = ?',
       [type || 'TENANT', area || null, unit_id]
     );
+
+    await recordAudit(req, {
+      action: 'ONBOARD_RESIDENT',
+      entity: 'units',
+      entity_id: unit_id,
+      summary: `Onboarded ${name} into flat ${unitCheck[0].number}`,
+      after: { user_id: userId, name, email, phone: phone || '', type: type || 'TENANT', move_in_date: moveDate }
+    }, connection);
 
     await connection.commit();
 
@@ -160,6 +169,14 @@ exports.updateResident = async (req, res) => {
         await db.execute('UPDATE users SET name = IFNULL(?, name), phone = IFNULL(?, phone) WHERE id = ?', [name || null, phone || null, userId]);
       }
     }
+
+    await recordAudit(req, {
+      action: 'EDIT_RESIDENT',
+      entity: 'units',
+      entity_id: unit_id,
+      summary: `Edited the resident record on flat ${unit_id}`,
+      after: { name, phone, emergency_contact, type, area }
+    });
 
     res.json({ success: true, message: 'Resident details updated successfully.' });
   } catch (error) {
@@ -259,6 +276,38 @@ exports.vacateUnit = async (req, res) => {
       ]
     );
 
+    // Their token is good for another day and still says RESIDENT. Bumping the
+    // version ends it now, and an account with no other flat is closed outright
+    // rather than left signed in to a building they have left.
+    const [otherFlats] = await connection.execute(
+      'SELECT COUNT(*) AS live FROM residents WHERE user_id = ? AND is_active = true',
+      [resident.user_id]
+    );
+
+    const stillLivesHere = Number(otherFlats[0].live) > 0;
+
+    await connection.execute(
+      'UPDATE users SET token_version = token_version + 1, is_active = ? WHERE id = ?',
+      [stillLivesHere ? 1 : 0, resident.user_id]
+    );
+
+    await recordAudit(req, {
+      action: 'VACATE_UNIT',
+      entity: 'units',
+      entity_id: unitId,
+      summary: dues.balance > 0
+        ? `Moved ${resident.name} out of flat ${unitRows[0].number} with ${dues.balance} waived: ${String(waiverReason).trim()}`
+        : `Moved ${resident.name} out of flat ${unitRows[0].number}, dues clear`,
+      before: { resident_user_id: resident.user_id, outstanding: dues },
+      after: {
+        certificate_number: certificateNumber,
+        move_out_date: outDate,
+        dues_waived: dues.balance > 0,
+        waiver_reason: dues.balance > 0 ? String(waiverReason).trim() : null,
+        account_closed: !stillLivesHere
+      }
+    }, connection);
+
     await connection.commit();
 
     res.json({
@@ -292,5 +341,73 @@ exports.getUnitDues = async (req, res) => {
   } catch (error) {
     console.error('Error fetching unit dues:', error);
     res.status(500).json({ success: false, message: 'Server error fetching unit dues.' });
+  }
+};
+
+// 6. Re-issue a one-time password for the flat's resident.
+//
+// Onboarding was the only thing that ever issued a password, so a resident who
+// forgot theirs was locked out for good. This is the recovery path, and it runs
+// through an admin rather than an inbox because the building has no mail server.
+exports.reissuePassword = async (req, res) => {
+  const { unit_id: unitId } = req.params;
+  const reason = String(req.body?.reason || '').trim();
+
+  if (reason.length < 4) {
+    return res.status(400).json({
+      success: false,
+      message: 'Record why this password is being re-issued.'
+    });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT usr.id, usr.name, usr.email, u.number AS unit_number
+       FROM residents r
+       JOIN users usr ON r.user_id = usr.id
+       JOIN units u ON r.unit_id = u.id
+       WHERE r.unit_id = ? AND r.is_active = true`,
+      [unitId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'That flat has no active resident.' });
+    }
+
+    const person = rows[0];
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    // Bumping the version matters here: if the account was taken over, the
+    // person holding it is signed out the moment the password is replaced.
+    await db.execute(
+      `UPDATE users
+       SET password = ?, must_change_password = 1, is_active = 1, token_version = token_version + 1
+       WHERE id = ?`,
+      [passwordHash, person.id]
+    );
+
+    await recordAudit(req, {
+      action: 'REISSUE_PASSWORD',
+      entity: 'users',
+      entity_id: person.id,
+      summary: `Re-issued the password for ${person.name} of flat ${person.unit_number}: ${reason}`,
+      after: { forced_change: true, sessions_ended: true }
+    });
+
+    res.json({
+      success: true,
+      message: `A one-time password was issued for ${person.name}. They must replace it at first sign-in.`,
+      data: {
+        resident_name: person.name,
+        email: person.email,
+        unit_number: person.unit_number,
+        // Shown to the admin once so they can pass it on. Never stored in plain text.
+        temp_password: tempPassword
+      }
+    });
+  } catch (error) {
+    console.error('Error re-issuing password:', error);
+    res.status(500).json({ success: false, message: 'Server error re-issuing that password.' });
   }
 };

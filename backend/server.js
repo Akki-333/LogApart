@@ -29,6 +29,7 @@ const helperRoutes = require('./src/routes/helperRoutes');
 const noticeRoutes = require('./src/routes/noticeRoutes');
 const parkingRoutes = require('./src/routes/parkingRoutes');
 const staffRoutes = require('./src/routes/staffRoutes');
+const auditRoutes = require('./src/routes/auditRoutes');
 
 const { protect, requirePasswordSet } = require('./src/middleware/auth');
 
@@ -48,6 +49,7 @@ app.use('/api/helpers', guarded, helperRoutes);
 app.use('/api/notices', guarded, noticeRoutes);
 app.use('/api/parking', guarded, parkingRoutes);
 app.use('/api/staff', guarded, staffRoutes);
+app.use('/api/audit', guarded, auditRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

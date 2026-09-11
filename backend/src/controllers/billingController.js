@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { recordAudit } = require('../services/audit');
 const {
   buildRunLines,
   displayStatus,
@@ -156,6 +157,14 @@ exports.createRun = async (req, res) => {
       );
     }
 
+    await recordAudit(req, {
+      action: 'CREATE_BILLING_RUN',
+      entity: 'billing_runs',
+      entity_id: run.insertId,
+      summary: `Raised dues for ${req.body.period}: ${totals.units_billed} flats, ${totals.total_billed} billed`,
+      after: { period: req.body.period, due_date: dueDate, config, totals }
+    }, connection);
+
     await connection.commit();
 
     createNotification({
@@ -220,34 +229,59 @@ exports.getRuns = async (req, res) => {
 /** 4. Undo a run, allowed only while nothing has been collected against it. */
 exports.deleteRun = async (req, res) => {
   const { id } = req.params;
+  const connection = await db.getConnection();
 
   try {
-    const [[collected]] = await db.execute(
-      'SELECT COALESCE(SUM(amount_paid), 0) AS paid FROM invoices WHERE billing_run_id = ?',
+    await connection.beginTransaction();
+
+    const [runs] = await connection.execute(
+      'SELECT * FROM billing_runs WHERE id = ? FOR UPDATE',
+      [id]
+    );
+
+    if (runs.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ success: false, message: 'Billing run not found' });
+    }
+
+    const [[collected]] = await connection.execute(
+      'SELECT COALESCE(SUM(amount_paid), 0) AS paid, COUNT(*) AS invoices FROM invoices WHERE billing_run_id = ?',
       [id]
     );
 
     if (Number(collected.paid) > 0) {
+      await connection.rollback();
       return res.status(409).json({
         success: false,
         message: 'Payments have already been recorded against this run, so it cannot be deleted.'
       });
     }
 
-    const [result] = await db.execute('DELETE FROM billing_runs WHERE id = ?', [id]);
+    await connection.execute('DELETE FROM billing_runs WHERE id = ?', [id]);
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'Billing run not found' });
-    }
+    // A month of invoices disappearing is the kind of thing a committee asks
+    // about later, so the run it removed is kept in full.
+    await recordAudit(req, {
+      action: 'DELETE_BILLING_RUN',
+      entity: 'billing_runs',
+      entity_id: id,
+      summary: `Deleted the dues run for ${runs[0].period_month}, withdrawing ${collected.invoices} unpaid invoices`,
+      before: runs[0],
+      after: null
+    }, connection);
+
+    await connection.commit();
 
     res.json({ success: true, message: 'Billing run and its invoices removed.' });
   } catch (error) {
+    await connection.rollback();
     console.error('Error deleting billing run:', error);
     res.status(500).json({ success: false, message: 'Server error deleting billing run' });
+  } finally {
+    connection.release();
   }
 };
 
-/** 5. Invoices, filterable by month, unit and settlement state. */
 exports.getInvoices = async (req, res) => {
   const { period, unit_id: unitId, status } = req.query;
 
@@ -399,6 +433,21 @@ exports.recordPayment = async (req, res) => {
        WHERE id = ?`,
       [toRupees(nextPaid), nextStatus, nextStatus, id]
     );
+
+    await recordAudit(req, {
+      action: 'RECORD_PAYMENT',
+      entity: 'invoices',
+      entity_id: id,
+      summary: `Recorded ${toRupees(amountPaise)} against invoice ${id} by ${mode || 'UPI'}`,
+      before: { amount_paid: invoice.amount_paid, status: invoice.status },
+      after: {
+        amount_paid: toRupees(nextPaid),
+        status: nextStatus,
+        mode: mode || 'UPI',
+        reference: reference || null,
+        paid_on: paidOn || null
+      }
+    }, connection);
 
     await connection.commit();
 
