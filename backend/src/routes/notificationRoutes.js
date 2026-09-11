@@ -1,26 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const notificationController = require('../controllers/notificationController');
-const jwt = require('jsonwebtoken');
+// Mounted behind protect + requirePasswordSet in server.js, so req.user is set here.
 
-const protect = (req, res, next) => {
-  let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
-
-  if (!token) return res.status(401).json({ message: 'Not authorized' });
-
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Token failed' });
-  }
-};
-
-router.get('/', protect, notificationController.getNotifications);
-router.put('/:id/read', protect, notificationController.markAsRead);
-router.put('/read-all', protect, notificationController.markAllAsRead);
+// Every signed-in role has a notification bell; the query scopes rows by role.
+router.get('/', notificationController.getNotifications);
+router.put('/read-all', notificationController.markAllAsRead);
+router.put('/:id/read', notificationController.markAsRead);
 
 module.exports = router;

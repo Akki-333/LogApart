@@ -1,27 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const ticketController = require('../controllers/ticketController');
-const jwt = require('jsonwebtoken');
+const { requireRole } = require('../middleware/auth');
 
-// Simple Middleware to protect routes (Should ideally be refactored into a shared middleware file)
-const protect = (req, res, next) => {
-  let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
+// Mounted behind protect + requirePasswordSet in server.js, so req.user is set here.
 
-  if (!token) return res.status(401).json({ message: 'Not authorized' });
-
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Token failed' });
-  }
-};
-
-router.get('/', protect, ticketController.getTickets);
-router.post('/', protect, ticketController.createTicket);
-router.put('/:id', protect, ticketController.updateTicketStatus);
+// Admin only for now. Resident-scoped ticket access arrives with the
+// resident portal, which needs per-unit filtering before it can be opened up.
+router.get('/', requireRole('ADMIN'), ticketController.getTickets);
+router.post('/', requireRole('ADMIN'), ticketController.createTicket);
+router.put('/:id', requireRole('ADMIN'), ticketController.updateTicketStatus);
 
 module.exports = router;

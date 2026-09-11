@@ -1,28 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const securityController = require('../controllers/securityController');
-const jwt = require('jsonwebtoken');
+const { requireRole } = require('../middleware/auth');
 
-const protect = (req, res, next) => {
-  let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
+// Mounted behind protect + requirePasswordSet in server.js, so req.user is set here.
 
-  if (!token) return res.status(401).json({ message: 'Not authorized' });
+// Admins get oversight of the gate log, but never write to it. This mirrors the
+// read-only admin gate view and stops the portal interfering with live tracking.
+router.get('/visitors', requireRole('ADMIN', 'SECURITY'), securityController.getVisitorLogs);
 
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    next();
-  } catch (error) {
-    res.status(401).json({ message: 'Token failed' });
-  }
-};
-
-router.get('/visitors', protect, securityController.getVisitorLogs);
-router.post('/visitors', protect, securityController.logVisitor);
-router.put('/visitors/:id', protect, securityController.updateVisitor);
-router.put('/visitors/:id/checkout', protect, securityController.checkoutVisitor);
-router.delete('/visitors/:id', protect, securityController.deleteVisitor);
+router.post('/visitors', requireRole('SECURITY'), securityController.logVisitor);
+router.put('/visitors/:id', requireRole('SECURITY'), securityController.updateVisitor);
+router.put('/visitors/:id/checkout', requireRole('SECURITY'), securityController.checkoutVisitor);
+router.delete('/visitors/:id', requireRole('SECURITY'), securityController.deleteVisitor);
 
 module.exports = router;
