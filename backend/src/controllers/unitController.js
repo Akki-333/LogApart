@@ -1,5 +1,10 @@
+const crypto = require('crypto');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+
+// One-time password handed to a newly onboarded resident. They are forced to
+// replace it at first login, so it never becomes a shared building password.
+const generateTempPassword = () => crypto.randomBytes(6).toString('base64url');
 
 // 1. Get all units with resident details
 exports.getUnits = async (req, res) => {
@@ -57,49 +62,69 @@ exports.assignResident = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Unit ID, Name, and Email are required.' });
   }
 
+  const connection = await db.getConnection();
+
   try {
-    // Check if unit exists
-    const [unitCheck] = await db.execute('SELECT * FROM units WHERE id = ?', [unit_id]);
+    await connection.beginTransaction();
+
+    const [unitCheck] = await connection.execute('SELECT id FROM units WHERE id = ?', [unit_id]);
     if (unitCheck.length === 0) {
+      await connection.rollback();
       return res.status(404).json({ success: false, message: 'Unit not found' });
     }
 
-    // Check if user exists or create new user
+    // Reuse the user record if this person already has one, otherwise mint a
+    // resident account with a one-time password.
     let userId;
-    const [userCheck] = await db.execute('SELECT id FROM users WHERE email = ?', [email]);
+    let tempPassword = null;
+
+    const [userCheck] = await connection.execute('SELECT id FROM users WHERE email = ?', [email]);
+
     if (userCheck.length > 0) {
       userId = userCheck[0].id;
-      // Update phone and name if provided
-      await db.execute('UPDATE users SET name = ?, phone = ? WHERE id = ?', [name, phone || '', userId]);
+      await connection.execute('UPDATE users SET name = ?, phone = ? WHERE id = ?', [name, phone || '', userId]);
     } else {
-      const defaultPasswordHash = await bcrypt.hash('password123', 10);
-      const [newUser] = await db.execute(
-        'INSERT INTO users (name, email, password, role, phone) VALUES (?, ?, ?, ?, ?)',
-        [name, email, defaultPasswordHash, 'RESIDENT', phone || '']
+      tempPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+      const [newUser] = await connection.execute(
+        'INSERT INTO users (name, email, password, role, phone, must_change_password) VALUES (?, ?, ?, ?, ?, 1)',
+        [name, email, passwordHash, 'RESIDENT', phone || '']
       );
       userId = newUser.insertId;
     }
 
-    // Deactivate any old active resident for this unit just in case
-    await db.execute('UPDATE residents SET is_active = false WHERE unit_id = ?', [unit_id]);
+    await connection.execute('UPDATE residents SET is_active = false WHERE unit_id = ?', [unit_id]);
 
-    // Create new resident record
     const moveDate = move_in_date ? new Date(move_in_date) : new Date();
-    await db.execute(
+    await connection.execute(
       'INSERT INTO residents (user_id, unit_id, move_in_date, emergency_contact, is_active) VALUES (?, ?, ?, ?, true)',
       [userId, unit_id, moveDate, emergency_contact || '']
     );
 
-    // Mark unit as occupied
-    await db.execute(
+    await connection.execute(
       'UPDATE units SET is_occupied = true, type = ?, area = IFNULL(?, area) WHERE id = ?',
       [type || 'TENANT', area || null, unit_id]
     );
 
-    res.json({ success: true, message: 'Resident successfully assigned to unit.' });
+    await connection.commit();
+
+    res.json({
+      success: true,
+      message: 'Resident successfully assigned to unit.',
+      // Shown to the admin once so they can pass it on. Never stored in plain text.
+      temp_password: tempPassword
+    });
   } catch (error) {
+    await connection.rollback();
     console.error('Error assigning resident:', error);
+
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'That email is already registered.' });
+    }
+
     res.status(500).json({ success: false, message: 'Server error assigning resident.' });
+  } finally {
+    connection.release();
   }
 };
 
