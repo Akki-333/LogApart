@@ -70,7 +70,7 @@ password forces a change and ends every session on the account.
 
 ---
 
-## Phase 5 — The other half of the ledger
+## Phase 5 — The other half of the ledger (done, 2026-09-12)
 
 LogApart tracks money coming in and nothing going out, so it cannot answer the
 question a committee is actually asked: where did the maintenance go?
@@ -123,11 +123,16 @@ was last reminded, so the committee can see who has been chased and who has not.
 A sinking-fund contribution is not maintenance income. Give it its own head so
 the two can never be spent as the same money.
 
-**Verification.** Extends the billing suite. An expense linked to a ticket shows
-in that ticket's cost. The statement's closing balance equals opening plus
-collections minus expenses, to the paise. A late fee appears as an adjustment and
-a waiver reverses it. A declared payment leaves the balance untouched until
-verified. A receipt number is unique and never reused.
+**Verified.** `npm run verify:finances`, 70 checks, all passing. An expense
+linked to a ticket shows in that ticket's cost. The statement's closing balance
+follows from its own opening, collections and spend. A late fee appears as an
+adjustment, charges once a month, and a waiver cannot fall below what is already
+paid. A declared payment leaves the balance untouched until verified. Receipt
+numbers are unique. A reminder reaches the flat it is about and no other.
+
+One thing was added that the plan did not name: a notification could only be
+addressed to a role, so a dues reminder would have told the whole building who
+was behind. Migration `008` lets a row be addressed to one person.
 
 ---
 

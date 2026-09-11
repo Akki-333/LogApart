@@ -10,6 +10,7 @@ import {
   Wallet,
   Users2,
   ScrollText,
+  BookOpen,
   LogOut,
   Menu
 } from 'lucide-react';
@@ -27,7 +28,8 @@ export default function DashboardLayout() {
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     { name: 'Residents', icon: Users, path: '/admin/residents' },
-    { name: 'Finances', icon: Wallet, path: '/admin/billing' },
+    { name: 'Dues', icon: Wallet, path: '/admin/billing' },
+    { name: 'Books', icon: BookOpen, path: '/admin/books' },
     { name: 'Maintenance', icon: Wrench, path: '/admin/maintenance' },
     { name: 'Community', icon: Users2, path: '/admin/community' },
     { name: 'Security', icon: ShieldCheck, path: '/admin/security' },

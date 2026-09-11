@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../lib/api';
 import GenerateDuesModal from '../components/billing/GenerateDuesModal';
 import RecordPaymentModal from '../components/billing/RecordPaymentModal';
+import CollectionActions from '../components/billing/CollectionActions';
 import { formatRupees, formatRupeesShort, formatPeriod, formatDay, currentPeriod } from '../lib/money';
 import {
   Wallet, Calculator, TrendingUp, AlertCircle, RefreshCw, Trash2,
@@ -260,6 +261,8 @@ export default function Billing() {
           )}
         </div>
       </div>
+
+      <CollectionActions period={period} onChanged={load} />
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

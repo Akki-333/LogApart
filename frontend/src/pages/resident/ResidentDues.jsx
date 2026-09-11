@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatPeriod, formatDay } from '../../lib/money';
 import { Wallet, ChevronDown, CheckCircle2, Receipt, AlertCircle } from 'lucide-react';
+import DeclarePayment from '../../components/resident/DeclarePayment';
 
 const STATUS_STYLES = {
   PAID: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -16,13 +17,15 @@ export default function ResidentDues() {
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api
       .get('/api/resident/invoices')
       .then((res) => setData(res.data.data))
       .catch((err) => setError(err.response?.data?.message || 'Could not load your bills.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   if (loading) {
     return (
@@ -130,6 +133,23 @@ export default function ResidentDues() {
                           <span>Your share of common water</span>
                           <span className="font-semibold">{formatRupees(invoice.water_amount)}</span>
                         </div>
+                        {invoice.corpus_amount > 0 && (
+                          <div className="flex justify-between text-slate-600">
+                            <span>Building corpus</span>
+                            <span className="font-semibold">{formatRupees(invoice.corpus_amount)}</span>
+                          </div>
+                        )}
+                        {(invoice.adjustments || []).map((adjustment, index) => (
+                          <div key={index} className="flex justify-between text-slate-600">
+                            <span>
+                              {adjustment.kind === 'LATE_FEE' ? 'Late fee' : adjustment.kind.toLowerCase()}
+                              <span className="text-slate-400"> · {adjustment.reason}</span>
+                            </span>
+                            <span className={`font-semibold ${adjustment.amount < 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {formatRupees(adjustment.amount)}
+                            </span>
+                          </div>
+                        ))}
                         <div className="flex justify-between pt-1.5 border-t border-slate-200 text-slate-900">
                           <span className="font-bold">Total</span>
                           <span className="font-black">{formatRupees(invoice.total_amount)}</span>
@@ -155,6 +175,9 @@ export default function ResidentDues() {
                                   by {payment.mode.replace('_', ' ').toLowerCase()}
                                 </span>
                                 {payment.reference && <span className="text-emerald-600">· {payment.reference}</span>}
+                                {payment.receipt_number && (
+                                  <span className="font-mono text-emerald-600">· {payment.receipt_number}</span>
+                                )}
                               </span>
                               <span className="text-emerald-700">{formatDay(payment.paid_on)}</span>
                             </div>
@@ -162,6 +185,8 @@ export default function ResidentDues() {
                         </div>
                       )}
                     </div>
+
+                    {invoice.balance > 0 && <DeclarePayment invoice={invoice} onDeclared={load} />}
                   </div>
                 )}
               </div>

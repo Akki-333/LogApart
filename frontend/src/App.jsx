@@ -14,6 +14,7 @@ import Maintenance from './pages/Maintenance';
 import Billing from './pages/Billing';
 import Community from './pages/Community';
 import Activity from './pages/Activity';
+import Books from './pages/Books';
 import Security from './pages/Security';
 import ResidentHome from './pages/resident/ResidentHome';
 import ResidentDues from './pages/resident/ResidentDues';
@@ -74,6 +75,7 @@ function AppRoutes() {
         <Route path="dashboard" element={<DashboardHome />} />
         <Route path="residents" element={<Residents />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="books" element={<Books />} />
         <Route path="maintenance" element={<Maintenance />} />
         <Route path="community" element={<Community />} />
         <Route path="activity" element={<Activity />} />

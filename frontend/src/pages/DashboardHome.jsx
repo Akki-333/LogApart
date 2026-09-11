@@ -22,12 +22,25 @@ export default function DashboardHome() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [notices, setNotices] = useState([]);
+  const [renewals, setRenewals] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardStats();
     fetchNotices();
+    fetchRenewals();
   }, [token]);
+
+  // A lift AMC lapsing unnoticed is found out by the lift. The committee should
+  // hear about it here first.
+  const fetchRenewals = async () => {
+    try {
+      const res = await api.get('/api/finance/contracts/expiring');
+      setRenewals(res.data.data);
+    } catch (err) {
+      console.error('Failed to load contract renewals:', err);
+    }
+  };
 
   // The community banner used to be a hardcoded paragraph about water tank
   // cleaning. It now shows whatever notices are actually live.
@@ -71,6 +84,30 @@ export default function DashboardHome() {
   return (
     <div className="max-w-7xl mx-auto space-y-7 pb-12">
       
+      {renewals.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
+          <p className="text-sm font-bold text-amber-900 mb-1.5">
+            {renewals.length === 1 ? 'A contract needs renewing' : `${renewals.length} contracts need renewing`}
+          </p>
+          <ul className="space-y-1">
+            {renewals.slice(0, 4).map((contract) => (
+              <li key={contract.id} className="text-xs text-amber-900">
+                <span className="font-semibold">{contract.vendor_name}</span> · {contract.title} ·{' '}
+                {contract.has_expired
+                  ? 'already expired'
+                  : `${contract.days_remaining} days left`}
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={() => navigate('/admin/books')}
+            className="mt-2 text-xs font-bold text-amber-900 underline underline-offset-2"
+          >
+            Open the vendor registry
+          </button>
+        </div>
+      )}
+
       {/* 1. Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

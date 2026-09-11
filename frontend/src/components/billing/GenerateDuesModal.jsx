@@ -15,6 +15,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
     due_date: tenthOf(currentPeriod()),
     maintenance_rate: '',
     rate_basis: 'FLAT',
+    corpus_rate: '',
     common_electricity_total: '',
     common_water_total: '',
     split_basis: 'EQUAL',
@@ -31,6 +32,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
     () => ({
       maintenance_rate: Number(form.maintenance_rate || 0),
       rate_basis: form.rate_basis,
+      corpus_rate: Number(form.corpus_rate || 0),
       common_electricity_total: Number(form.common_electricity_total || 0),
       common_water_total: Number(form.common_water_total || 0),
       split_basis: form.split_basis
@@ -40,6 +42,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
 
   const hasCharge =
     Number(form.maintenance_rate || 0) > 0 ||
+    Number(form.corpus_rate || 0) > 0 ||
     Number(form.common_electricity_total || 0) > 0 ||
     Number(form.common_water_total || 0) > 0;
 
@@ -166,6 +169,20 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                   </select>
                 </div>
               </div>
+
+              <div>
+                <label className={label}>Corpus per flat</label>
+                <input
+                  type="number" min="0" step="0.01" placeholder="0.00"
+                  value={form.corpus_rate}
+                  onChange={(e) => update('corpus_rate', e.target.value)}
+                  className={field}
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  The same figure from every home whatever its size, and kept apart from
+                  maintenance so the two can never be spent as one.
+                </p>
+              </div>
             </div>
 
             <div className="border border-slate-200 rounded-xl p-4 space-y-3">
@@ -248,6 +265,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                           <th className="px-3 py-2 font-bold text-right">Maintenance</th>
                           <th className="px-3 py-2 font-bold text-right">Electricity</th>
                           <th className="px-3 py-2 font-bold text-right">Water</th>
+                          <th className="px-3 py-2 font-bold text-right">Corpus</th>
                           <th className="px-3 py-2 font-bold text-right">Total</th>
                         </tr>
                       </thead>
@@ -258,6 +276,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                             <td className="px-3 py-2 text-right text-slate-600">{formatRupees(line.maintenance_amount)}</td>
                             <td className="px-3 py-2 text-right text-slate-600">{formatRupees(line.electricity_amount)}</td>
                             <td className="px-3 py-2 text-right text-slate-600">{formatRupees(line.water_amount)}</td>
+                            <td className="px-3 py-2 text-right text-slate-600">{formatRupees(line.corpus_amount)}</td>
                             <td className="px-3 py-2 text-right font-bold text-slate-900">{formatRupees(line.total_amount)}</td>
                           </tr>
                         ))}

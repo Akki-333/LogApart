@@ -115,6 +115,9 @@ and each route declares the roles it accepts.
 | Gate writes: log, edit, checkout, delete | ❌ | ✅ | ❌ |
 | `GET /api/notifications` | ✅ | ✅ | ✅ |
 | `GET /api/audit` activity trail | ✅ | ❌ | ❌ |
+| `/api/finance/*` expenses, vendors, statement, budget | ✅ | ❌ | ❌ |
+| Late fees, adjustments, reminders, declaration review | ✅ | ❌ | ❌ |
+| `/api/resident/declarations` declare a payment made | ❌ | ❌ | ✅ |
 | Re-issue a resident one-time password | ✅ | ❌ | ❌ |
 | `/api/auth/me`, `/api/auth/change-password` | ✅ | ✅ | ✅ |
 
@@ -205,6 +208,58 @@ LogApart raises one invoice per occupied flat.
 
 The heatmap on the Residents screen has a Dues mode: green for clear, amber for
 owing but still in time, red once past the due date.
+
+---
+
+## 📒 The Books
+
+The ledger used to record money coming in and nothing going out, so it could not
+answer the question a committee is actually asked at the annual meeting.
+
+- **An expense ledger.** Every bill the building pays, under a category and a
+  fund head, naming a vendor from the registry or just a payee. A bill can point
+  at the maintenance ticket it settles, which is how a repair finally gets its
+  real cost. A bill approved but not yet paid is reported as owed rather than
+  spent.
+- **Vendors and contracts.** A lift AMC lapsing unnoticed is found out by the
+  lift. Each contract carries its end date and its own reminder window, and
+  anything inside that window leads the admin dashboard. Days remaining are
+  counted by the database, so a machine in another timezone cannot make a
+  contract look a day longer than it is.
+- **A monthly statement on a cash basis.** Opening balance, what came in, what
+  went out by category, closing balance, exportable as a spreadsheet. Approved
+  but unpaid bills are held apart so the closing figure still matches the bank.
+- **Budget against actual on an accrual basis.** The opposite basis on purpose: a
+  committee that underspends in March by paying in April has saved nobody
+  anything, so the bill date is what counts. Every category is listed, and one
+  with no budget reads as unplanned rather than as perfectly on target.
+- **A corpus kept apart.** A contribution towards the building is collected as
+  its own invoice line, the same figure from every home whatever its size. A part
+  payment settles the service charges before it touches the corpus, which is the
+  only honest way to say how much of it has actually been contributed.
+
+### Late fees, receipts and reminders
+
+- **A late fee is raised, never implied.** It is priced on the same code path
+  that charges it, so the table the admin approves is what happens. It moves what
+  the flat owes and leaves an adjustment row behind as the explanation. One fee
+  per invoice per calendar month, so clicking twice cannot double a bill.
+- **A waiver reduces the bill whichever sign was typed**, and cannot take it
+  below what has already been paid.
+- **Every payment issues a receipt**, numbered per year under a row lock, visible
+  to the resident on the bill it settled.
+- **A reminder reaches one resident.** Telling every resident who is late is a
+  notice board, not a reminder, so a notification can now be addressed to a
+  person rather than a role. Who was chased, and when, is kept.
+
+### Payments a resident declares
+
+Paying by UPI took ten seconds and then a week of reminding somebody to write it
+down. A resident can now tell the building what they paid, with the amount, mode,
+reference and date. It never moves the balance on its own: it waits in a queue
+until an admin confirms it against the account, and confirming it settles the
+invoice exactly as recording one by hand does, receipt included. A refusal has to
+carry a reason, and the resident is told either way.
 
 ---
 
@@ -318,6 +373,12 @@ addressed to them rather than only the twenty most recent.
   tokens, an audit trail behind money and access, gate records withdrawn rather
   than destroyed, admin-issued password recovery, security headers, a body cap
   and one request validator. Verified by `npm run verify:trust`.
+- **Phase 5 — Building finances (done).** An expense ledger by category and fund,
+  a vendor registry with contracts that warn before they lapse, a cash-basis
+  monthly statement with a CSV export, budget against actual for the financial
+  year, a corpus kept apart from maintenance, late fees raised as real
+  adjustments, numbered receipts, per-resident dues reminders, and payments a
+  resident declares for an admin to confirm. Verified by `npm run verify:finances`.
 - **Phase 3 — Daily community value (done).** A daily helper registry with
   one-tap gate check-in, notices as a real module replacing the hardcoded banner,
   parking bays with repeat-offender tracking, and staff attendance driving
