@@ -1,5 +1,7 @@
 # LogApart review — 12 September 2026
 
+> Items 1, 2 and 4 of the fix list were acted on the same day. See section 4.
+
 A review of the naming, the data in the development database, and the state of
 the build. Figures come from the live database and from counts over the source
 tree, not from the documentation.
@@ -164,17 +166,26 @@ the portal. Missing: the admin surface for the new modules.
 
 ## 4. What to fix, in order
 
-1. **Put a unique key on `units.number` and clear the duplicate homes.** A
-   migration plus a one-off data fix. Everything else is downstream of this.
-2. **Decide the noun.** Reading A or reading B above. Then rename the
-   user-facing strings by hand, leaving the billing `'FLAT'` enum alone.
+1. ~~**Put a unique key on `units.number` and clear the duplicate homes.**~~
+   **Done**, migration `012`. 80 rows collapsed to 20, everything repointed onto
+   the surviving home, unique key added. The run's summary and its invoices
+   agree again at 20 homes and ₹50,000.
+2. ~~**Decide the noun.**~~ **Done.** Reading A: it stays a building, and the
+   word a person reads is **home**. `units`, `unit_id` and `unit_number` keep
+   their technical names. The billing `'FLAT'` enum was left alone and the
+   option that read "Flat amount" now reads "Fixed amount". All four suites
+   pass: 25, 52, 70, 72.
 3. **Reduce to one seed script**, idempotent, honouring one-time passwords, and
-   covering phases 4 to 6 so a walkthrough has something to show.
-4. **Reconcile the ₹25,000.** Either write the payment records that justify it,
-   with receipts, or reset the invoice balances to zero.
-5. **Finish the Phase 6 admin surface** and commit what is in the tree.
-6. **Drop the dead `payments` table and the two unused roles.**
+   covering phases 4 to 6 so a walkthrough has something to show. `master_seed.js`
+   is now tracked but still hands out shared passwords and swallows a failed
+   invoice insert. **Open.**
+4. ~~**Reconcile the ₹25,000.**~~ **Done** in the same migration. Every invoice's
+   paid amount is now the sum of its real payment records, which is ₹0, because
+   an amount with no receipt behind it was never collected.
+5. **Finish the Phase 6 admin surface.** The amenities tab is written, wired and
+   committed. A polls tab and an emergency-contacts tab are still missing, and
+   `Community.jsx` now shows five tabs of an eventual seven. **Open.**
+6. **Drop the dead `payments` table and the two unused roles.** **Open.**
 
-Items 1 and 4 are data integrity and should not wait. Item 2 is a decision only
-you can make, and the answer changes whether item 1's migration also touches
-`floor` and `block_name`.
+Items 3, 5 and 6 remain. Item 3 matters most: half the application still shows
+an empty state because phases 4 to 6 have no demo data behind them.
