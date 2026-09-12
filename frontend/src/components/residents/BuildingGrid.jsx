@@ -81,10 +81,10 @@ export default function BuildingGrid({
               ) : (
                 <>
                   <span className="flex items-center gap-1.5 text-teal-700">
-                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span> Occupied Flat
+                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span> Occupied Home
                   </span>
                   <span className="flex items-center gap-1.5 text-slate-500">
-                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Vacant Flat
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Vacant Home
                   </span>
                 </>
               )}
@@ -116,7 +116,7 @@ export default function BuildingGrid({
                     const matched = isMatch(unit);
                     const dues = balances[unit.unit_id];
 
-                    // In finance mode a flat is red once it is past its due date,
+                    // In finance mode a home is red once it is past its due date,
                     // amber while it owes but is still in time, green when clear.
                     const financeTone = !unit.is_occupied
                       ? 'bg-white border-slate-200 hover:bg-slate-100'
@@ -142,7 +142,7 @@ export default function BuildingGrid({
                           }
                         `}
                       >
-                        {/* Flat Number */}
+                        {/* Home Number */}
                         <span className={`text-xl font-black ${
                           !unit.is_occupied
                             ? 'text-slate-600'

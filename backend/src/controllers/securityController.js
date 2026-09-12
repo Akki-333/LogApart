@@ -41,7 +41,7 @@ exports.logVisitor = async (req, res) => {
   const logged_by_id = req.user.id;
 
   if (!visitor_name || !unit_id) {
-    return res.status(400).json({ success: false, message: 'Visitor name and visiting flat are required.' });
+    return res.status(400).json({ success: false, message: 'Visitor name and visiting home are required.' });
   }
 
   try {
@@ -66,11 +66,11 @@ exports.logVisitor = async (req, res) => {
 
     // Send notification bridge to Admin
     const [unitRow] = await db.execute('SELECT number FROM units WHERE id = ?', [unit_id]);
-    const flatNum = unitRow[0]?.number || 'Flat';
+    const homeNum = unitRow[0]?.number || 'Home';
     const tagInfo = company ? `${company} Delivery` : purpose;
 
     createNotification({
-      title: `Gate Entry • Flat ${flatNum}`,
+      title: `Gate Entry • Home ${homeNum}`,
       message: `${visitor_name} (${tagInfo}) entered the premises.`,
       target_role: 'ADMIN',
       type: 'GATE'
@@ -220,7 +220,7 @@ exports.deleteVisitor = async (req, res) => {
 
 /**
  * 6. Look up a pre-approved visitor by the code their host gave them.
- * The guard types six characters instead of ringing the flat.
+ * The guard types six characters instead of ringing the home.
  */
 exports.findPass = async (req, res) => {
   const code = String(req.query.code || '').trim().toUpperCase();
@@ -298,7 +298,7 @@ exports.admitPass = async (req, res) => {
     );
 
     createNotification({
-      title: `Gate Entry • Flat ${pass.unit_number}`,
+      title: `Gate Entry • Home ${pass.unit_number}`,
       message: `${pass.visitor_name} entered on a pre-approved pass.`,
       target_role: 'ADMIN',
       type: 'GATE'

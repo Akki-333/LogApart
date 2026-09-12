@@ -22,7 +22,7 @@ export default function ParkingTab({ onAction }) {
       .then(([b, v, u]) => {
         setBays(b.data.data);
         setViolations(v.data.data);
-        setUnits((u.data.flatList || []).filter((unit) => unit.is_occupied));
+        setUnits((u.data.homeList || []).filter((unit) => unit.is_occupied));
       })
       .catch((err) => console.error('Failed to load parking', err))
       .finally(() => setLoading(false));
@@ -125,7 +125,7 @@ export default function ParkingTab({ onAction }) {
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
             <Car className="w-8 h-8 mx-auto mb-3 text-slate-300" />
             <p className="text-sm font-semibold text-slate-500">No parking bays recorded yet.</p>
-            <p className="text-xs text-slate-400 mt-1">Add the bays and allot them to flats so the guard knows which car belongs where.</p>
+            <p className="text-xs text-slate-400 mt-1">Add the bays and allot them to homes so the guard knows which car belongs where.</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
@@ -153,7 +153,7 @@ export default function ParkingTab({ onAction }) {
                       >
                         <option value="">Unallotted</option>
                         {units.map((unit) => (
-                          <option key={unit.unit_id} value={unit.unit_id}>Flat {unit.number}</option>
+                          <option key={unit.unit_id} value={unit.unit_id}>Home {unit.number}</option>
                         ))}
                       </select>
                       {bay.resident_name && <div className="text-[11px] text-slate-400 mt-0.5">{bay.resident_name}</div>}
@@ -198,7 +198,7 @@ export default function ParkingTab({ onAction }) {
                 <div>
                   <div className="text-xs font-bold text-slate-800">
                     Bay {violation.bay_number}
-                    {violation.unit_number ? `, allotted to Flat ${violation.unit_number}` : ', unallotted'}
+                    {violation.unit_number ? `, allotted to Home ${violation.unit_number}` : ', unallotted'}
                   </div>
                   <div className="text-[11px] text-slate-400">
                     {formatDay(violation.occurred_at)} · logged by {violation.reported_by}
@@ -275,7 +275,7 @@ export default function ParkingTab({ onAction }) {
                 <select value={form.unit_id} onChange={(e) => setForm({ ...form, unit_id: e.target.value })} className={field}>
                   <option value="">Leave unallotted</option>
                   {units.map((unit) => (
-                    <option key={unit.unit_id} value={unit.unit_id}>Flat {unit.number}</option>
+                    <option key={unit.unit_id} value={unit.unit_id}>Home {unit.number}</option>
                   ))}
                 </select>
               </div>

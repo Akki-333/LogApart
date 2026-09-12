@@ -12,7 +12,7 @@ const {
 } = require('../services/billing');
 const { createNotification } = require('./notificationController');
 
-/** Occupied flats with their active resident, the population a run bills. */
+/** Occupied homes with their active resident, the population a run bills. */
 const OCCUPIED_UNITS_QUERY = `
   SELECT u.id AS unit_id, u.number, u.floor, u.area, usr.id AS resident_user_id, usr.name AS resident_name
   FROM units u
@@ -119,7 +119,7 @@ const settleInvoice = async (connection, invoice, details) => {
 };
 
 /**
- * 1. Dry run. Shows the admin exactly what each flat would be charged before
+ * 1. Dry run. Shows the admin exactly what each home would be charged before
  * anything is written, which is the difference between a billing tool people
  * trust and one they re-check by hand.
  */
@@ -128,7 +128,7 @@ exports.previewRun = async (req, res) => {
     const [units] = await db.query(OCCUPIED_UNITS_QUERY);
 
     if (units.length === 0) {
-      return res.status(400).json({ success: false, message: 'No occupied flats to bill.' });
+      return res.status(400).json({ success: false, message: 'No occupied homes to bill.' });
     }
 
     const { lines, totals } = buildRunLines(units, readConfig(req.body));
@@ -144,7 +144,7 @@ exports.previewRun = async (req, res) => {
   }
 };
 
-/** 2. Generate a month of dues. One invoice per occupied flat. */
+/** 2. Generate a month of dues. One invoice per occupied home. */
 exports.createRun = async (req, res) => {
   const periodMonth = periodToDate(req.body.period);
   const dueDate = req.body.due_date;
@@ -190,7 +190,7 @@ exports.createRun = async (req, res) => {
 
     if (units.length === 0) {
       await connection.rollback();
-      return res.status(400).json({ success: false, message: 'No occupied flats to bill.' });
+      return res.status(400).json({ success: false, message: 'No occupied homes to bill.' });
     }
 
     const { lines, totals } = buildRunLines(units, config);
@@ -241,7 +241,7 @@ exports.createRun = async (req, res) => {
       action: 'CREATE_BILLING_RUN',
       entity: 'billing_runs',
       entity_id: run.insertId,
-      summary: `Raised dues for ${req.body.period}: ${totals.units_billed} flats, ${totals.total_billed} billed`,
+      summary: `Raised dues for ${req.body.period}: ${totals.units_billed} homes, ${totals.total_billed} billed`,
       after: { period: req.body.period, due_date: dueDate, config, totals }
     }, connection);
 
@@ -249,7 +249,7 @@ exports.createRun = async (req, res) => {
 
     createNotification({
       title: `Dues raised for ${req.body.period}`,
-      message: `${totals.units_billed} flats billed. Payment is due by ${dueDate}.`,
+      message: `${totals.units_billed} homes billed. Payment is due by ${dueDate}.`,
       target_role: 'RESIDENT',
       type: 'BILLING'
     });
@@ -545,7 +545,7 @@ exports.getOverview = async (req, res) => {
         )
       : [[{ invoice_count: 0, billed: 0, collected: 0, settled_count: 0 }]];
 
-    // Outstanding spans every month, not just the one on screen. A flat that
+    // Outstanding spans every month, not just the one on screen. A home that
     // skipped March still owes for March while April is being viewed.
     const [openRows] = await db.execute(
       `SELECT i.id, i.unit_id, i.period_month, i.total_amount, i.amount_paid, i.status, i.due_date,
@@ -679,13 +679,13 @@ exports.outstandingForUnit = async (unitId, connection = db) => {
 /**
  * 11. Late fees, priced before they are charged.
  *
- * A fee is raised as a real adjustment that moves what the flat owes, never
+ * A fee is raised as a real adjustment that moves what the home owes, never
  * derived at read time, so a resident who saw a figure on Monday sees the same
  * figure on Tuesday. The preview runs the same code path as the commit, which
  * is what makes the table in front of the admin worth trusting.
  *
  * One fee per invoice per calendar month. A second run in the same month finds
- * the flats it already charged and leaves them alone, so an admin who clicks
+ * the homes it already charged and leaves them alone, so an admin who clicks
  * twice does not double a defaulter's bill.
  */
 const priceLateFees = async (connection, body) => {
@@ -808,7 +808,7 @@ exports.applyLateFees = async (req, res) => {
     res.json({
       success: true,
       message: chargeable.length === 0
-        ? 'Nothing to charge. Every overdue flat has already been charged this month.'
+        ? 'Nothing to charge. Every overdue home has already been charged this month.'
         : `Charged ${totalFee} across ${chargeable.length} invoices.`,
       data: { charged: chargeable.length, total_fee: totalFee, skipped: lines.length - chargeable.length }
     });
@@ -921,7 +921,7 @@ exports.getAdjustments = async (req, res) => {
 };
 
 /**
- * 14. Chase the flats that are behind, and remember having done it.
+ * 14. Chase the homes that are behind, and remember having done it.
  *
  * Each reminder is addressed to one resident, so a defaulter list never
  * becomes a notice to the building. The record of who was chased and when is
@@ -951,7 +951,7 @@ exports.sendReminders = async (req, res) => {
       periodMonth ? [periodMonth] : []
     );
 
-    // A flat between tenants has nobody to remind. It stays in the defaulter
+    // A home between tenants has nobody to remind. It stays in the defaulter
     // list, but sending a notification to no one is not a reminder.
     const reachable = invoices.filter((invoice) => invoice.resident_id);
 
@@ -966,7 +966,7 @@ exports.sendReminders = async (req, res) => {
       );
 
       await createNotification({
-        title: `Dues pending for flat ${invoice.unit_number}`,
+        title: `Dues pending for home ${invoice.unit_number}`,
         message: `${balance} is outstanding, ${overdue} days past the due date of ${invoice.due_date}.`,
         target_role: 'RESIDENT',
         target_user_id: invoice.resident_id,
@@ -978,7 +978,7 @@ exports.sendReminders = async (req, res) => {
       action: 'SEND_DUES_REMINDERS',
       entity: 'invoices',
       entity_id: req.body.period || 'all',
-      summary: `Reminded ${reachable.length} flats about outstanding dues`,
+      summary: `Reminded ${reachable.length} homes about outstanding dues`,
       after: { reminded: reachable.map((invoice) => invoice.unit_number) }
     }, connection);
 
@@ -987,8 +987,8 @@ exports.sendReminders = async (req, res) => {
     res.json({
       success: true,
       message: reachable.length === 0
-        ? 'Nothing to chase. No overdue flat has a resident to remind.'
-        : `Reminded ${reachable.length} flats.`,
+        ? 'Nothing to chase. No overdue home has a resident to remind.'
+        : `Reminded ${reachable.length} homes.`,
       data: {
         reminded: reachable.length,
         unreachable: invoices.length - reachable.length
@@ -1139,8 +1139,8 @@ exports.reviewDeclaration = async (req, res) => {
       entity: 'payment_declarations',
       entity_id: id,
       summary: approve
-        ? `Verified ${declaration.amount} declared by flat ${declaration.unit_id}, receipt ${settled.receipt_number}`
-        : `Refused ${declaration.amount} declared by flat ${declaration.unit_id}: ${note}`,
+        ? `Verified ${declaration.amount} declared by home ${declaration.unit_id}, receipt ${settled.receipt_number}`
+        : `Refused ${declaration.amount} declared by home ${declaration.unit_id}: ${note}`,
       before: declaration,
       after: settled
     }, connection);

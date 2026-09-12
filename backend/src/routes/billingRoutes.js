@@ -58,7 +58,7 @@ router.post(
   billingController.addAdjustment
 );
 
-// Chasing the flats that are behind, one resident at a time.
+// Chasing the homes that are behind, one resident at a time.
 router.get('/reminders', adminOnly, billingController.getReminderHistory);
 router.post('/reminders', adminOnly, billingController.sendReminders);
 

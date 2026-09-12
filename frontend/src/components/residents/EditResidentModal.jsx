@@ -44,7 +44,7 @@ export default function EditResidentModal({ isOpen, onClose, onSubmit, unit }) {
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800">Edit Resident Info</h2>
-              <p className="text-xs text-slate-500">Updating details for Flat {unit.number}</p>
+              <p className="text-xs text-slate-500">Updating details for Home {unit.number}</p>
             </div>
           </div>
           <button 

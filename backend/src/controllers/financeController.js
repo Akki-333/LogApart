@@ -298,7 +298,7 @@ exports.exportStatement = async (req, res) => {
       ['LogApart statement', period],
       [],
       ['Money in'],
-      ['Date', 'Receipt', 'Flat', 'Mode', 'Reference', 'Amount'],
+      ['Date', 'Receipt', 'Home', 'Mode', 'Reference', 'Amount'],
       ...payments.map((row) => [
         row.paid_on, row.receipt_number || '', row.unit_number, row.mode, row.reference || '', Number(row.amount)
       ]),

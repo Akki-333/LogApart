@@ -5,7 +5,7 @@ const { requireRole } = require('../middleware/auth');
 
 // Mounted behind protect + requirePasswordSet in server.js, so req.user is set here.
 
-// Residents see only the helpers who work for their own flat.
+// Residents see only the helpers who work for their own home.
 router.get('/mine', requireRole('RESIDENT'), helperController.getMyHelpers);
 
 // The guard reads the registry to check people in; the admin manages it.

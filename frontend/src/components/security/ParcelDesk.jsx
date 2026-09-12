@@ -48,7 +48,7 @@ export default function ParcelDesk({ units = [], readOnly = false, dark = false 
   };
 
   const release = async (parcel) => {
-    const name = window.prompt(`Who is collecting the parcel for flat ${parcel.unit_number}?`);
+    const name = window.prompt(`Who is collecting the parcel for home ${parcel.unit_number}?`);
     if (name === null) return;
 
     if (name.trim().length < 2) {
@@ -99,10 +99,10 @@ export default function ParcelDesk({ units = [], readOnly = false, dark = false 
             required
             className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-800"
           >
-            <option value="">Which flat</option>
+            <option value="">Which home</option>
             {units.map((unit) => (
               <option key={unit.unit_id || unit.id} value={unit.unit_id || unit.id}>
-                Flat {unit.number}
+                Home {unit.number}
               </option>
             ))}
           </select>
@@ -135,7 +135,7 @@ export default function ParcelDesk({ units = [], readOnly = false, dark = false 
             <li key={parcel.id} className="px-5 py-3 flex flex-wrap items-center gap-3">
               <div className="flex-1 min-w-[180px]">
                 <p className={`text-sm font-bold ${heading}`}>
-                  Flat {parcel.unit_number} · {parcel.courier || 'delivery'}
+                  Home {parcel.unit_number} · {parcel.courier || 'delivery'}
                 </p>
                 <p className={`text-[11px] ${muted}`}>
                   {parcel.description || 'No description'} · in {when(parcel.received_at)}

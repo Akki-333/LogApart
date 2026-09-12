@@ -6,7 +6,7 @@ const { validate } = require('../middleware/validate');
 
 // Mounted behind protect + requirePasswordSet in server.js, so req.user is set here.
 //
-// Every handler resolves the caller's own flat before touching anything, so a
+// Every handler resolves the caller's own home before touching anything, so a
 // resident can never read or write another unit's records.
 const residentOnly = requireRole('RESIDENT');
 

@@ -10,7 +10,7 @@ const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN'];
  *
  * The second half is the point. A JWT lives a day and used to be the only
  * source of truth for the caller's role, so demoting an admin, closing an
- * account or vacating a flat changed nothing until the token expired. The
+ * account or vacating a home changed nothing until the token expired. The
  * token now carries a version, the account carries the same counter, and a
  * mismatch ends the session immediately. Role and password state are taken
  * from the row rather than the token for the same reason.

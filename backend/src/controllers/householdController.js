@@ -1,10 +1,10 @@
 const db = require('../config/db');
 
 /**
- * Who lives in the flat, what they drive, and whether they want to be listed.
+ * Who lives in the home, what they drive, and whether they want to be listed.
  *
- * Everything here is scoped to the caller's own flat by the server. The
- * directory is the one read that crosses flats, and it shows only the residents
+ * Everything here is scoped to the caller's own home by the server. The
+ * directory is the one read that crosses homes, and it shows only the residents
  * who switched themselves on.
  */
 
@@ -27,7 +27,7 @@ const withUnit = (handler) => async (req, res) => {
       return res.status(404).json({
         success: false,
         code: 'NO_ACTIVE_UNIT',
-        message: 'You are not currently listed against a flat.'
+        message: 'You are not currently listed against a home.'
       });
     }
 
@@ -38,7 +38,7 @@ const withUnit = (handler) => async (req, res) => {
   }
 };
 
-/** 1. The flat's own profile. */
+/** 1. The home's own profile. */
 exports.getHousehold = withUnit(async (req, res, unit) => {
   const [members] = await db.execute(
     'SELECT * FROM household_members WHERE unit_id = ? ORDER BY is_minor ASC, name ASC',
@@ -90,7 +90,7 @@ exports.removeMember = withUnit(async (req, res, unit) => {
 
 /**
  * 2. Vehicles. The plate is unique across the building on purpose: the same car
- * cannot belong to two flats, and that is what lets a parking violation say
+ * cannot belong to two homes, and that is what lets a parking violation say
  * whose car it is rather than reporting an unknown plate.
  */
 exports.addVehicle = withUnit(async (req, res, unit) => {
@@ -103,7 +103,7 @@ exports.addVehicle = withUnit(async (req, res, unit) => {
       [unit.unit_id, type || 'CAR', normalised, model || null]
     );
 
-    res.json({ success: true, message: `${normalised} registered to your flat.`, data: { id: result.insertId } });
+    res.json({ success: true, message: `${normalised} registered to your home.`, data: { id: result.insertId } });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({
@@ -123,7 +123,7 @@ exports.removeVehicle = withUnit(async (req, res, unit) => {
   );
 
   if (result.affectedRows === 0) {
-    return res.status(404).json({ success: false, message: 'No such vehicle on your flat.' });
+    return res.status(404).json({ success: false, message: 'No such vehicle on your home.' });
   }
 
   res.json({ success: true, message: 'Vehicle removed.' });

@@ -5,7 +5,7 @@ import { BellRing, Gavel, Check, X, HandCoins } from 'lucide-react';
 
 /**
  * The three things an admin does about money that has not arrived: confirm what
- * a resident says they paid, charge the flats that are late, and chase the rest.
+ * a resident says they paid, charge the homes that are late, and chase the rest.
  *
  * Late fees are priced before they are charged, on the same code path that
  * charges them, so the table shown here is what will actually happen.
@@ -31,7 +31,7 @@ export default function CollectionActions({ period, onChanged }) {
     let note = '';
 
     if (!approve) {
-      note = window.prompt(`Why can ${formatRupees(declaration.amount)} from flat ${declaration.unit_number} not be confirmed?`) || '';
+      note = window.prompt(`Why can ${formatRupees(declaration.amount)} from home ${declaration.unit_number} not be confirmed?`) || '';
       if (note.trim().length < 4) {
         alert('Say why before refusing a declared payment.');
         return;
@@ -74,7 +74,7 @@ export default function CollectionActions({ period, onChanged }) {
   };
 
   const remind = async () => {
-    if (!window.confirm(`Send a reminder to every flat behind on ${formatPeriod(period)}? Each resident is told only about their own flat.`)) return;
+    if (!window.confirm(`Send a reminder to every home behind on ${formatPeriod(period)}? Each resident is told only about their own home.`)) return;
 
     try {
       const response = await api.post('/api/billing/reminders', { period });
@@ -107,7 +107,7 @@ export default function CollectionActions({ period, onChanged }) {
               <li key={declaration.id} className="px-5 py-3 flex flex-wrap items-center gap-3">
                 <div className="flex-1 min-w-[180px]">
                   <p className="text-sm font-semibold text-slate-800">
-                    Flat {declaration.unit_number} · {formatRupees(declaration.amount)}
+                    Home {declaration.unit_number} · {formatRupees(declaration.amount)}
                   </p>
                   <p className="text-[11px] text-slate-500">
                     {declaration.mode}
@@ -149,7 +149,7 @@ export default function CollectionActions({ period, onChanged }) {
                 onChange={(event) => setRule({ ...rule, basis: event.target.value })}
                 className="block w-32 px-3 py-2 border border-slate-200 rounded-xl text-sm"
               >
-                <option value="FLAT">Flat amount</option>
+                <option value="FLAT">Fixed amount</option>
                 <option value="PERCENT">Percent of balance</option>
               </select>
             </label>
@@ -189,19 +189,19 @@ export default function CollectionActions({ period, onChanged }) {
               {feePreview.chargeable === 0 ? (
                 <p className="text-xs text-slate-500">
                   Nothing to charge for {formatPeriod(period)}.
-                  {feePreview.skipped > 0 && ` ${feePreview.skipped} flats were already charged this month.`}
+                  {feePreview.skipped > 0 && ` ${feePreview.skipped} homes were already charged this month.`}
                 </p>
               ) : (
                 <>
                   <p className="text-xs text-slate-600 mb-2">
                     <span className="font-bold">{formatRupees(feePreview.total_fee)}</span> across{' '}
-                    {feePreview.chargeable} flats
+                    {feePreview.chargeable} homes
                     {feePreview.skipped > 0 && `, ${feePreview.skipped} already charged this month`}.
                   </p>
                   <ul className="text-[11px] text-slate-500 space-y-0.5 max-h-32 overflow-y-auto">
                     {feePreview.lines.map((line) => (
                       <li key={line.invoice_id} className={line.already_charged ? 'line-through opacity-50' : ''}>
-                        Flat {line.unit_number} · {line.days_overdue} days late · {formatRupees(line.fee)}
+                        Home {line.unit_number} · {line.days_overdue} days late · {formatRupees(line.fee)}
                       </li>
                     ))}
                   </ul>
@@ -221,7 +221,7 @@ export default function CollectionActions({ period, onChanged }) {
             onClick={remind}
             className="flex items-center w-full justify-center px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 font-bold border border-slate-200 rounded-xl text-sm"
           >
-            <BellRing className="w-4 h-4 mr-2" /> Remind the flats behind on {formatPeriod(period)}
+            <BellRing className="w-4 h-4 mr-2" /> Remind the homes behind on {formatPeriod(period)}
           </button>
 
           <p className="text-[11px] text-slate-400">

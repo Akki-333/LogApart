@@ -19,7 +19,7 @@ router.post(
   requireRole('SECURITY'),
   validate({
     visitor_name: { required: true, type: 'string', maxLength: 255, label: 'Visitor name' },
-    unit_id: { required: true, type: 'integer', label: 'Visiting flat' },
+    unit_id: { required: true, type: 'integer', label: 'Visiting home' },
     visitor_phone: { type: 'string', maxLength: 20, label: 'Phone' },
     vehicle_number: { type: 'string', maxLength: 50, label: 'Vehicle number' }
   }),

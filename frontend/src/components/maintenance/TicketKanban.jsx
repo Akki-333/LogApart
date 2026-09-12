@@ -74,7 +74,7 @@ export default function TicketKanban({ tickets, onUpdateStatus, onOpenTicket }) 
                       ) : (
                         <span className="inline-flex items-center text-xs font-bold text-teal-700 bg-teal-50 px-2 py-1 rounded">
                           <Home className="w-3 h-3 mr-1" />
-                          Flat {ticket.unit_number}
+                          Home {ticket.unit_number}
                         </span>
                       )}
                       {getPriorityBadge(ticket.priority)}

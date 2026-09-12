@@ -51,7 +51,7 @@ export default function ResidentDues() {
       <div>
         <h1 className="text-2xl font-black text-slate-900">My Dues</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Every bill raised for Flat {data.unit.number}, with what has been paid against it
+          Every bill raised for Home {data.unit.number}, with what has been paid against it
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default function ResidentDues() {
       {data.invoices.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
           <Receipt className="w-8 h-8 mx-auto mb-3 text-slate-300" />
-          <p className="text-sm font-semibold text-slate-500">No bills have been raised for your flat yet.</p>
+          <p className="text-sm font-semibold text-slate-500">No bills have been raised for your home yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -122,7 +122,7 @@ export default function ResidentDues() {
                       <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">What you were charged</h4>
                       <div className="space-y-1.5 text-xs">
                         <div className="flex justify-between text-slate-600">
-                          <span>Flat maintenance</span>
+                          <span>Home maintenance</span>
                           <span className="font-semibold">{formatRupees(invoice.maintenance_amount)}</span>
                         </div>
                         <div className="flex justify-between text-slate-600">

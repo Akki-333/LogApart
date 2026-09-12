@@ -29,7 +29,7 @@ export default function UnitSlideOut({
               <Home className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900">Flat {unit.number}</h2>
+              <h2 className="text-xl font-extrabold text-slate-900">Home {unit.number}</h2>
               <p className="text-xs font-semibold text-slate-500">
                 {unit.block_name ? `Block ${unit.block_name} • ` : ''}Floor {unit.floor}
               </p>
@@ -54,7 +54,7 @@ export default function UnitSlideOut({
                 : 'bg-slate-100 text-slate-600 border border-slate-200'
             }`}>
               <span className={`w-2 h-2 rounded-full mr-2 ${unit.is_occupied ? 'bg-teal-500' : 'bg-slate-400'}`}></span>
-              {unit.is_occupied ? 'Occupied' : 'Vacant Flat'}
+              {unit.is_occupied ? 'Occupied' : 'Vacant Home'}
             </span>
 
             {unit.is_occupied && (
@@ -68,7 +68,7 @@ export default function UnitSlideOut({
 
           {/* Unit Specifications */}
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2.5 text-xs">
-            <h3 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Flat Specifications</h3>
+            <h3 className="font-bold text-slate-400 uppercase tracking-wider mb-2">Home Specifications</h3>
             <div className="flex justify-between py-1 border-b border-slate-100/80">
               <span className="text-slate-500">Total Carpet Area</span>
               <span className="font-bold text-slate-800">{unit.area || '1000'} Sq. Ft</span>
@@ -142,7 +142,7 @@ export default function UnitSlideOut({
               <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <User className="w-6 h-6 text-slate-400" />
               </div>
-              <h4 className="text-sm font-bold text-slate-800">Flat is Currently Vacant</h4>
+              <h4 className="text-sm font-bold text-slate-800">Home is Currently Vacant</h4>
               <p className="text-xs text-slate-500 mt-1">Assign an owner or tenant to start tracking occupancy.</p>
               
               <button 

@@ -94,7 +94,7 @@ export default function ResidentIssues() {
       <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 flex items-start gap-3">
         <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
         <p className="text-xs text-slate-600 leading-relaxed">
-          This is for the building itself, not for what is inside your flat. A leaking
+          This is for the building itself, not for what is inside your home. A leaking
           wall, a stuck lift or a dead hallway light belong here. Your own fridge or air
           conditioner does not.
         </p>
@@ -112,7 +112,7 @@ export default function ResidentIssues() {
       ) : tickets.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
           <Wrench className="w-8 h-8 mx-auto mb-3 text-slate-300" />
-          <p className="text-sm font-semibold text-slate-500">Nothing reported for your flat yet.</p>
+          <p className="text-sm font-semibold text-slate-500">Nothing reported for your home yet.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -217,7 +217,7 @@ export default function ResidentIssues() {
                     }`}
                   >
                     <Home className="w-4 h-4 mr-2" />
-                    My flat
+                    My home
                   </button>
                 </div>
               </div>

@@ -8,7 +8,7 @@
  * Everything the run creates is tagged and removed on the way out. Two rules
  * matter. The billing run uses a period no real month will collide with, and
  * every late fee and reminder call is scoped to that period, so the suite can
- * never charge or chase a real flat.
+ * never charge or chase a real home.
  */
 
 require('dotenv').config();
@@ -239,7 +239,7 @@ async function run() {
       [runId, unit.id]
     );
     const invoice = ourInvoices[0];
-    check('the flat was billed', Boolean(invoice));
+    check('the home was billed', Boolean(invoice));
     check('the corpus is its own line on the invoice', money(invoice.corpus_amount) === 500, String(invoice.corpus_amount));
 
     const [[billedTotals]] = await db.execute(
@@ -278,7 +278,7 @@ async function run() {
     });
     check('late fees can be priced first', res.status === 200 && (res.body.data.lines || []).length > 0, JSON.stringify(res.body.data?.chargeable));
     const previewed = res.body.data.lines.find((line) => line.invoice_id === invoice.id);
-    check('the preview shows the fee for our flat', Boolean(previewed && previewed.fee > 0), JSON.stringify(previewed));
+    check('the preview shows the fee for our home', Boolean(previewed && previewed.fee > 0), JSON.stringify(previewed));
 
     const beforeTotal = money(invoice.total_amount);
     res = await call(adminToken, '/billing/late-fees', {
@@ -376,7 +376,7 @@ async function run() {
       JSON.stringify(res.body.data)
     );
 
-    // 10. Chasing the flats that are behind, one resident at a time.
+    // 10. Chasing the homes that are behind, one resident at a time.
     res = await call(adminToken, '/billing/reminders', {
       method: 'POST',
       body: JSON.stringify({ period: PERIOD })
@@ -388,16 +388,16 @@ async function run() {
       [invoice.id]
     );
     check('the reminder is on the record', reminderRows.length === 1, String(reminderRows.length));
-    check('the record says how far behind the flat was', Number(reminderRows[0].days_overdue) > 0);
+    check('the record says how far behind the home was', Number(reminderRows[0].days_overdue) > 0);
 
     res = await call(residentToken, '/notifications');
-    const theirs = (res.body.data || []).find((row) => row.title.includes(`flat ${unit.number}`));
+    const theirs = (res.body.data || []).find((row) => row.title.includes(`home ${unit.number}`));
     check('the resident is told', Boolean(theirs), JSON.stringify((res.body.data || []).map((r) => r.title)));
 
     res = await call(neighbourToken, '/notifications');
     check(
       'no other resident learns who is behind',
-      !(res.body.data || []).some((row) => row.title.includes(`flat ${unit.number}`)),
+      !(res.body.data || []).some((row) => row.title.includes(`home ${unit.number}`)),
       JSON.stringify((res.body.data || []).map((r) => r.title))
     );
 
@@ -424,7 +424,7 @@ async function run() {
       method: 'POST',
       body: JSON.stringify({ invoice_id: invoice.id, amount: 100, mode: 'UPI', paid_on: '2019-01-18' })
     });
-    check('a resident cannot declare against another flat', res.status === 404, String(res.status));
+    check('a resident cannot declare against another home', res.status === 404, String(res.status));
 
     res = await call(adminToken, '/billing/declarations?status=PENDING');
     check('the admin sees it waiting', (res.body.data || []).some((row) => row.id === declarationId));

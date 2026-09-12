@@ -58,13 +58,13 @@ export default function Security({ readOnly = false }) {
   const fetchUnitsForDropdown = async () => {
     try {
       const response = await api.get('/api/units');
-      const flatUnits = [];
+      const homeUnits = [];
       Object.values(response.data.data).forEach(block => {
         Object.values(block.floors).forEach(floorUnits => {
-          flatUnits.push(...floorUnits);
+          homeUnits.push(...floorUnits);
         });
       });
-      setUnits(flatUnits);
+      setUnits(homeUnits);
     } catch (error) {
       console.error('Failed to fetch units', error);
     }
@@ -273,7 +273,7 @@ export default function Security({ readOnly = false }) {
           </div>
           <input
             type="text"
-            placeholder="Search by Flat # (e.g. A-1), Visitor Name, Phone, Vehicle Number, or Swiggy/Amazon..."
+            placeholder="Search by Home # (e.g. A-1), Visitor Name, Phone, Vehicle Number, or Swiggy/Amazon..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 font-medium text-slate-800"
@@ -328,7 +328,7 @@ export default function Security({ readOnly = false }) {
             <thead className="text-xs uppercase bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4">Visitor / Driver</th>
-                <th className="px-6 py-4">Visiting Flat</th>
+                <th className="px-6 py-4">Visiting Home</th>
                 <th className="px-6 py-4">Vehicle</th>
                 <th className="px-6 py-4">Purpose</th>
                 <th className="px-6 py-4">Status & Time</th>
@@ -369,10 +369,10 @@ export default function Security({ readOnly = false }) {
                       </div>
                     </td>
 
-                    {/* Visiting Flat */}
+                    {/* Visiting Home */}
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-black bg-teal-50 text-teal-800 border border-teal-200">
-                        Flat {v.unit_number}
+                        Home {v.unit_number}
                       </span>
                     </td>
 

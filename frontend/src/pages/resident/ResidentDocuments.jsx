@@ -11,7 +11,7 @@ const TABS = [
 ];
 
 /**
- * Everything on paper for this flat, in one place. Nothing new is stored here:
+ * Everything on paper for this home, in one place. Nothing new is stored here:
  * it is the same bills, receipts, certificates and notices, gathered so nobody
  * has to remember which screen last March's receipt was on.
  */
@@ -45,7 +45,7 @@ export default function ResidentDocuments() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black text-slate-900">My Documents</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Everything on paper for flat {data.unit.number}</p>
+        <p className="text-sm text-slate-500 mt-0.5">Everything on paper for home {data.unit.number}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 w-fit">

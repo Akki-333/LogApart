@@ -1,9 +1,9 @@
 const db = require('../config/db');
 const { createNotification } = require('./notificationController');
 
-/** Parking bays belong to the building and are allotted to flats. */
+/** Parking bays belong to the building and are allotted to homes. */
 
-/** 1. Every bay with its allotted flat and any open violation. */
+/** 1. Every bay with its allotted home and any open violation. */
 exports.getBays = async (req, res) => {
   try {
     const [rows] = await db.query(
@@ -61,7 +61,7 @@ exports.createBay = async (req, res) => {
   }
 };
 
-/** 3. Allot a bay to a flat, change its registered vehicle, or free it. */
+/** 3. Allot a bay to a home, change its registered vehicle, or free it. */
 exports.updateBay = async (req, res) => {
   const { unit_id: unitId, vehicle_number: vehicleNumber, level, notes } = req.body;
 
@@ -107,7 +107,7 @@ exports.deleteBay = async (req, res) => {
 };
 
 /**
- * 5. Log a car parked where it should not be. The guard sees the bay, the flat
+ * 5. Log a car parked where it should not be. The guard sees the bay, the home
  * it belongs to, and whether that plate has done this before.
  */
 exports.createViolation = async (req, res) => {
@@ -154,7 +154,7 @@ exports.createViolation = async (req, res) => {
 
     createNotification({
       title: `Parking violation in bay ${bay.bay_number}`,
-      message: `${plate} is parked in bay ${bay.bay_number}${bay.unit_number ? `, allotted to Flat ${bay.unit_number}` : ''}.${times > 1 ? ` That plate has been logged ${times} times.` : ''}`,
+      message: `${plate} is parked in bay ${bay.bay_number}${bay.unit_number ? `, allotted to Home ${bay.unit_number}` : ''}.${times > 1 ? ` That plate has been logged ${times} times.` : ''}`,
       target_role: 'ADMIN',
       type: 'ALERT'
     });

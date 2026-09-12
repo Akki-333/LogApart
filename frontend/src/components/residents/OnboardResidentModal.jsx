@@ -35,7 +35,7 @@ export default function OnboardResidentModal({ isOpen, onClose, onSubmit, vacant
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800">Onboard New Resident</h2>
-              <p className="text-xs text-slate-500">Assign a tenant or owner to a flat</p>
+              <p className="text-xs text-slate-500">Assign a tenant or owner to a home</p>
             </div>
           </div>
           <button 
@@ -53,7 +53,7 @@ export default function OnboardResidentModal({ isOpen, onClose, onSubmit, vacant
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
-                <Home className="w-3.5 h-3.5 text-slate-400" /> Target Flat *
+                <Home className="w-3.5 h-3.5 text-slate-400" /> Target Home *
               </label>
               <select
                 required
@@ -61,10 +61,10 @@ export default function OnboardResidentModal({ isOpen, onClose, onSubmit, vacant
                 onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
                 className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm font-semibold text-slate-800 bg-white"
               >
-                <option value="">Select Vacant Flat</option>
+                <option value="">Select Vacant Home</option>
                 {vacantUnits?.map(u => (
                   <option key={u.unit_id} value={u.unit_id}>
-                    Flat {u.number} (Floor {u.floor})
+                    Home {u.number} (Floor {u.floor})
                   </option>
                 ))}
               </select>

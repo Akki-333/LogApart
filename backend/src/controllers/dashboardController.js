@@ -46,7 +46,7 @@ exports.getDashboardStats = async (req, res) => {
     `);
 
     // 5. Recent Open Maintenance Tickets
-    // LEFT JOIN on units: a common-area ticket has no flat, and an inner join
+    // LEFT JOIN on units: a common-area ticket has no home, and an inner join
     // would hide exactly the building-wide faults the admin most needs to see.
     const [recentTickets] = await db.execute(`
       SELECT

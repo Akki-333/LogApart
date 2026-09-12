@@ -7,7 +7,7 @@ const { createNotification } = require('./notificationController');
  * the gate.
  *
  * An SOS is deliberately thin: it raises an urgent notification to the guard on
- * duty and every admin, carrying the flat and whatever the resident had time to
+ * duty and every admin, carrying the home and whatever the resident had time to
  * type. It does not dial anyone. Pretending otherwise would be worse than not
  * having it.
  */
@@ -62,7 +62,7 @@ exports.deleteContact = async (req, res) => {
 
 /**
  * 2. The button. Raises an urgent notification to the desk and the admins with
- * the flat attached, and puts the call on the record so it can be reviewed.
+ * the home attached, and puts the call on the record so it can be reviewed.
  */
 exports.raiseAlert = async (req, res) => {
   const detail = String(req.body?.detail || '').trim().slice(0, 200);
@@ -78,23 +78,23 @@ exports.raiseAlert = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a flat.' });
+      return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a home.' });
     }
 
     const caller = rows[0];
-    const message = `${caller.name}, flat ${caller.number} on floor ${caller.floor}${caller.phone ? `, ${caller.phone}` : ''}.${detail ? ` ${detail}` : ''}`;
+    const message = `${caller.name}, home ${caller.number} on floor ${caller.floor}${caller.phone ? `, ${caller.phone}` : ''}.${detail ? ` ${detail}` : ''}`;
 
     // The guard is the one who can physically go, so the desk is told first and
     // separately rather than relying on an admin to relay it.
     await createNotification({
-      title: `EMERGENCY · Flat ${caller.number}`,
+      title: `EMERGENCY · Home ${caller.number}`,
       message,
       target_role: 'SECURITY',
       type: 'EMERGENCY'
     });
 
     await createNotification({
-      title: `EMERGENCY · Flat ${caller.number}`,
+      title: `EMERGENCY · Home ${caller.number}`,
       message,
       target_role: 'ADMIN',
       type: 'EMERGENCY'
@@ -104,7 +104,7 @@ exports.raiseAlert = async (req, res) => {
       action: 'RAISE_EMERGENCY',
       entity: 'units',
       entity_id: caller.unit_id,
-      summary: `Flat ${caller.number} raised an emergency alert`,
+      summary: `Home ${caller.number} raised an emergency alert`,
       after: { detail: detail || null }
     });
 

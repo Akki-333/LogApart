@@ -5,7 +5,7 @@ const { isAdminRole } = require('../middleware/auth');
 /**
  * Maintenance tickets cover the building's structure and its shared parts.
  *
- * A ticket is either raised against a flat or against the common area. The
+ * A ticket is either raised against a home or against the common area. The
  * common ones carry a location instead of a unit, because a stuck lift or a
  * failed water pump belongs to the building, not to anybody's home.
  */
@@ -27,7 +27,7 @@ const TICKET_SELECT = `
 
 /** Where the ticket is, in words, for any screen that needs one label. */
 const placeOf = (ticket) =>
-  ticket.scope === 'COMMON' ? ticket.location || 'Common area' : `Flat ${ticket.unit_number}`;
+  ticket.scope === 'COMMON' ? ticket.location || 'Common area' : `Home ${ticket.unit_number}`;
 
 const shape = (ticket) => ({ ...ticket, place: placeOf(ticket) });
 
@@ -97,7 +97,7 @@ exports.createTicket = async (req, res) => {
   const isCommon = scope === 'COMMON';
 
   if (!isCommon && !unitId) {
-    return res.status(400).json({ success: false, message: 'Pick the flat, or mark this as a common-area issue.' });
+    return res.status(400).json({ success: false, message: 'Pick the home, or mark this as a common-area issue.' });
   }
 
   if (isCommon && !String(location || '').trim()) {
@@ -160,7 +160,7 @@ const activeUnitFor = async (userId) => {
 
 /**
  * The ticket, if this caller is allowed to see it. An admin sees every ticket.
- * A resident sees their own flat's and every common-area one, which is the same
+ * A resident sees their own home's and every common-area one, which is the same
  * rule their ticket list already follows.
  */
 const readableTicket = async (req, ticketId) => {

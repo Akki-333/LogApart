@@ -70,7 +70,7 @@ export default function HelperCheckIn({ onAction }) {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name or flat"
+            placeholder="Name or home"
             className="pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm font-semibold text-white placeholder-slate-600 outline-none focus:border-teal-500 transition-colors w-full sm:w-52"
           />
         </div>
@@ -92,7 +92,7 @@ export default function HelperCheckIn({ onAction }) {
               <div className="text-sm font-bold text-white truncate">{helper.name}</div>
               <div className="text-[11px] text-slate-400 truncate">
                 <span className="capitalize">{helper.helper_type.toLowerCase()}</span>
-                {' · '}Flat {helper.unit_numbers}
+                {' · '}Home {helper.unit_numbers}
               </div>
               {helper.is_inside && (
                 <div className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">

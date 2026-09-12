@@ -119,7 +119,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800">Generate monthly dues</h2>
-              <p className="text-xs text-slate-500">Raises one invoice per occupied flat</p>
+              <p className="text-xs text-slate-500">Raises one invoice per occupied home</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
@@ -153,7 +153,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>{form.rate_basis === 'FLAT' ? 'Per flat' : 'Per square foot'}</label>
+                  <label className={label}>{form.rate_basis === 'FLAT' ? 'Per home' : 'Per square foot'}</label>
                   <input
                     type="number" min="0" step="0.01" placeholder="0.00"
                     value={form.maintenance_rate}
@@ -164,14 +164,14 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                 <div>
                   <label className={label}>Charged</label>
                   <select value={form.rate_basis} onChange={(e) => update('rate_basis', e.target.value)} className={field}>
-                    <option value="FLAT">Same for every flat</option>
+                    <option value="FLAT">Same for every home</option>
                     <option value="PER_SQFT">By carpet area</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className={label}>Corpus per flat</label>
+                <label className={label}>Corpus per home</label>
                 <input
                   type="number" min="0" step="0.01" placeholder="0.00"
                   value={form.corpus_rate}
@@ -192,7 +192,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Lifts, hallway lights, water pumps and the borewell. Enter what the building
-                was billed and it is divided across the occupied flats.
+                was billed and it is divided across the occupied homes.
               </p>
               <div className="grid grid-cols-3 gap-4">
                 <div>
@@ -237,7 +237,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <Droplets className="w-4 h-4 text-slate-400" />
-                  What each flat will be charged
+                  What each home will be charged
                 </h3>
                 {isPreviewing && <Loader2 className="w-4 h-4 text-teal-600 animate-spin" />}
               </div>
@@ -261,7 +261,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                     <table className="w-full text-xs">
                       <thead className="bg-slate-50 sticky top-0">
                         <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
-                          <th className="px-3 py-2 font-bold">Flat</th>
+                          <th className="px-3 py-2 font-bold">Home</th>
                           <th className="px-3 py-2 font-bold text-right">Maintenance</th>
                           <th className="px-3 py-2 font-bold text-right">Electricity</th>
                           <th className="px-3 py-2 font-bold text-right">Water</th>
@@ -285,7 +285,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                   </div>
                   <div className="bg-teal-50 border-t border-teal-200 px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs font-bold text-teal-900">
-                      {preview.totals.units_billed} flats, {formatPeriod(form.period)}
+                      {preview.totals.units_billed} homes, {formatPeriod(form.period)}
                     </span>
                     <span className="text-sm font-black text-teal-900">{formatRupees(preview.totals.total_billed)}</span>
                   </div>

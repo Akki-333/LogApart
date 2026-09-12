@@ -31,7 +31,7 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
     api
       .get(`/api/units/${unit.unit_id}/dues`)
       .then((res) => setDues(res.data.data))
-      .catch(() => setError('Could not check outstanding dues for this flat.'))
+      .catch(() => setError('Could not check outstanding dues for this home.'))
       .finally(() => setDuesLoading(false));
   }, [isOpen, unit?.unit_id]);
 
@@ -76,7 +76,7 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800">Move-Out & NOC Clearance</h2>
-              <p className="text-xs text-slate-500">Vacating Flat {unit.number} • {unit.resident_name}</p>
+              <p className="text-xs text-slate-500">Vacating Home {unit.number} • {unit.resident_name}</p>
             </div>
           </div>
           <button 
@@ -102,7 +102,7 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
                 <div className="text-xs text-slate-700 space-y-2 leading-relaxed font-sans">
                   <p>
                     This is to certify that <strong>{certificate?.resident_name || unit.resident_name}</strong>, residing at{' '}
-                    <strong>Flat {certificate?.unit_number || unit.number} (Floor {unit.floor})</strong>, has completed all
+                    <strong>Home {certificate?.unit_number || unit.number} (Floor {unit.floor})</strong>, has completed all
                     move-out formalities on <strong>{formatDay(certificate?.move_out_date || moveOutDate)}</strong>.
                   </p>
                   {certificate?.dues_waived ? (
@@ -165,7 +165,7 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 flex items-center gap-1.5"><Home className="w-4 h-4 text-slate-400" /> Unit:</span>
-                  <span className="font-semibold text-slate-700">Flat {unit.number} ({unit.type})</span>
+                  <span className="font-semibold text-slate-700">Home {unit.number} ({unit.type})</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500 flex items-center gap-1.5"><Calendar className="w-4 h-4 text-slate-400" /> Moved In:</span>
@@ -195,7 +195,7 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
                 {duesLoading && (
                   <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Checking the ledger for this flat...
+                    Checking the ledger for this home...
                   </div>
                 )}
 

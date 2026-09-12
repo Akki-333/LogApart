@@ -1,6 +1,6 @@
 # LogApart
 
-LogApart is a comprehensive, role-based apartment management system built to modernize how residential complexes handle tenant tracking, structural maintenance, and gate security.
+LogApart is a comprehensive, role-based management system for a residential society, built to modernize how a building handles resident tracking, structural maintenance, and gate security.
 
 Designed with a focus on usability, it abandons the "one-size-fits-all" dashboard approach in favor of a **Dual Portal Architecture**. The application provides deep, data-rich oversight for Super Admins while delivering a highly focused, high-contrast, distraction-free interface for Security Guards operating at the gate.
 
@@ -23,7 +23,7 @@ The core routing engine securely parses JWT tokens and automatically routes user
 ### 2. Super Admin Portal (Command Center)
 Designed for the building President / Secretary to oversee operations.
 - **Visual Unit Heatmap:** A visual grid mapping out 4 floors (20 units total, A-E) displaying real-time occupancy status, with a Dues mode for money owed.
-- **Structural Maintenance Kanban:** A ticketing system for building maintenance. A ticket belongs either to a flat or to the common area, so a stuck lift or a failed pump is filed against the building and its location rather than against somebody's home. Tickets feature automated SLA countdown timers.
+- **Structural Maintenance Kanban:** A ticketing system for building maintenance. A ticket belongs either to a home or to the common area, so a stuck lift or a failed pump is filed against the building and its location rather than against somebody's home. Tickets feature automated SLA countdown timers.
 - **Gate Oversight (Read-Only):** Admins have full visibility into the real-time security gate logs, but are restricted to a "Read-Only" mode to prevent interference with active guard tracking.
 
 ### 3. Security Guard Portal (Gatekeeper)
@@ -105,7 +105,7 @@ and each route declares the roles it accepts.
 | `/api/billing/*` runs, invoices, payments | ✅ | ❌ | ❌ |
 | `/api/resident/*` own dues, issues, gate, passes | ❌ | ❌ | ✅ |
 | Gate pass lookup and admit | ❌ | ✅ | ❌ |
-| `GET /api/helpers`, check in and out | 👁️ | ✅ | 👁️ own flat |
+| `GET /api/helpers`, check in and out | 👁️ | ✅ | 👁️ own home |
 | Helper registry writes | ✅ | ❌ | ❌ |
 | `GET /api/notices`, acknowledge | ✅ | ✅ | ✅ |
 | Posting and withdrawing notices | ✅ | ❌ | ❌ |
@@ -123,7 +123,7 @@ and each route declares the roles it accepts.
 
 Admin gate access is read-only on purpose, so the portal cannot interfere with
 live tracking at the desk. The guard reads units only to fill the "visiting
-flat" dropdown.
+home" dropdown.
 
 ### One-time passwords
 
@@ -153,7 +153,7 @@ resident out changed nothing until it expired. Every account carries a token
 version that the token repeats back, and a mismatch ends the session on the next
 request. Changing a password bumps it, which signs out everyone else holding the
 old one. Moving out bumps it and closes the account when the person has no other
-flat. Role and password state are read from the row, so a change lands
+home. Role and password state are read from the row, so a change lands
 immediately rather than tomorrow.
 
 **Nothing was audited.** A guard could delete the record that someone was in the
@@ -172,7 +172,7 @@ why.
 
 Onboarding used to be the only thing that ever issued a password, so a resident
 who forgot theirs was locked out for good. An admin can now re-issue a one-time
-password from the flat panel. It needs a reason, ends every session on the
+password from the home panel. It needs a reason, ends every session on the
 account, forces a change at the next sign-in, and lands in the activity log.
 
 ---
@@ -181,17 +181,17 @@ account, forces a change at the next sign-in, and lands in the activity log.
 
 Dues are raised a month at a time. An admin sets the maintenance charge and
 enters what the building was billed for shared electricity and water, and
-LogApart raises one invoice per occupied flat.
+LogApart raises one invoice per occupied home.
 
 - **Charges are itemised.** Maintenance, the common electricity share and the
   common water share are stored separately, so a resident sees what they are
   paying for rather than one opaque figure.
 - **Splits reconcile exactly.** All arithmetic runs in integer paise, and the
   leftover paise from a division are handed out one at a time to the largest
-  flats. A shared bill always sums back to the amount that went in.
-- **Two bases.** Maintenance can be a flat rate per home or a rate per square
+  homes. A shared bill always sums back to the amount that went in.
+- **Two bases.** Maintenance can be a fixed rate per home or a rate per square
   foot, and a common bill can be split equally or in proportion to carpet area.
-  A per-square-foot basis is refused when any flat has no recorded area, rather
+  A per-square-foot basis is refused when any home has no recorded area, rather
   than guessing and quietly misbilling someone.
 - **Nothing is written until it is seen.** The generate form prices every line
   on the server and shows the full table before it will commit.
@@ -242,7 +242,7 @@ answer the question a committee is actually asked at the annual meeting.
 
 - **A late fee is raised, never implied.** It is priced on the same code path
   that charges it, so the table the admin approves is what happens. It moves what
-  the flat owes and leaves an adjustment row behind as the explanation. One fee
+  the home owes and leaves an adjustment row behind as the explanation. One fee
   per invoice per calendar month, so clicking twice cannot double a bill.
 - **A waiver reduces the bill whichever sign was typed**, and cannot take it
   below what has already been paid.
@@ -265,18 +265,18 @@ carry a reason, and the resident is told either way.
 
 ## 🏠 Resident Portal
 
-Residents get four screens, each scoped to their own flat by the server. Every
+Residents get four screens, each scoped to their own home by the server. Every
 handler resolves the caller's active unit before touching anything, so one
 resident can never read or change another's records.
 
 - **Home.** What they owe, open issues, and guests expected at the gate.
-- **My Dues.** Every bill raised for the flat, itemised into maintenance and
+- **My Dues.** Every bill raised for the home, itemised into maintenance and
   their share of the common electricity and water, with the payments recorded
   against each one.
 - **Report an Issue.** Structural and shared problems only. Priority is set by
   the admin rather than the reporter, so the SLA clock cannot be set from the
   portal; everything arrives as MEDIUM for triage.
-- **My Gate.** Visitors logged against the flat, and pre-approved guest passes.
+- **My Gate.** Visitors logged against the home, and pre-approved guest passes.
 
 ### Pre-approved visitors
 
@@ -285,8 +285,8 @@ A resident expecting someone creates a pass and gets a six-character code. The
 from the original design but nothing wrote them; a pass is now an approved row
 raised before the visitor arrives.
 
-The guard types the code at the gate, sees who it belongs to and which flat
-approved it, and admits the guest without ringing the flat. A pass works once,
+The guard types the code at the gate, sees who it belongs to and which home
+approved it, and admits the guest without ringing the home. A pass works once,
 cannot be reused or admitted twice, and the resident can cancel it any time
 before the visitor arrives. Codes leave out `O`, `0`, `I` and `1`, since they are
 read aloud and typed at a gate.
@@ -301,12 +301,12 @@ them in a single sitting.
 ### Daily helpers
 
 Maids, cooks, drivers and milkmen are recurring people, not visitors. One maid
-across three flats generates more gate events in a month than every delivery
+across three homes generates more gate events in a month than every delivery
 combined, so they live in their own registry rather than the visitor log.
 
-A helper is registered once and linked to every flat they work for. At the gate
-the guard taps their name to check them in, and each of those flats is told
-their help has arrived. Attendance is kept per arrival, not per flat.
+A helper is registered once and linked to every home they work for. At the gate
+the guard taps their name to check them in, and each of those homes is told
+their help has arrived. Attendance is kept per arrival, not per home.
 
 ### Notices
 
@@ -318,7 +318,7 @@ seen them. The admin sees how many of the intended audience have.
 
 ### Parking
 
-Bays are recorded against the building and allotted to flats, with the
+Bays are recorded against the building and allotted to homes, with the
 registered vehicle on each. A guard who finds an unfamiliar car logs it against
 the bay, and the response says how many times that plate has been reported
 before. The car registered to a bay can never be a violation in its own bay.
@@ -338,13 +338,13 @@ absence counts none. The figure is indicative and the admin still signs it off.
 
 Both were fixed after the roadmap closed, in migration `005`.
 
-**Every ticket required a flat.** `maintenance_tickets.unit_id` was `NOT NULL`
+**Every ticket required a home.** `maintenance_tickets.unit_id` was `NOT NULL`
 and every query inner-joined `units`, so a lift breakdown, a failed water pump
 or a dead hallway light had to be blamed on somebody's unit. That contradicted
 the structural-and-common scope the ticket system was built for, and the inner
-join meant a common fault with no flat would have been invisible on the admin
+join meant a common fault with no home would have been invisible on the admin
 dashboard. A ticket now carries a scope and, when it is common, a location such
-as Lift A or the basement pump room. Residents see their own flat's tickets plus
+as Lift A or the basement pump room. Residents see their own home's tickets plus
 every common one, so they can tell the lift is already reported rather than
 filing it again.
 
@@ -367,7 +367,7 @@ addressed to them rather than only the twenty most recent.
   with aging buckets, a dues mode for the building heatmap, and clearance
   certificates gated on real outstanding dues.
 - **Phase 2 — Resident portal (done).** Own dues and payment history, raising
-  and tracking structural issues, gate activity for your own flat, and
+  and tracking structural issues, gate activity for your own home, and
   pre-approved visitor passes redeemed at the guard desk.
 - **Phase 4 — Trust and accountability (done).** Throttled sign-in, revocable
   tokens, an audit trail behind money and access, gate records withdrawn rather

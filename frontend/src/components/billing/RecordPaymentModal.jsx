@@ -83,7 +83,7 @@ export default function RecordPaymentModal({ invoiceId, isOpen, onClose, onRecor
             <div>
               <h2 className="text-lg font-bold text-slate-800">Record a payment</h2>
               <p className="text-xs text-slate-500">
-                {invoice ? `Flat ${invoice.unit_number}, ${formatPeriod(invoice.period_month)}` : 'Loading invoice...'}
+                {invoice ? `Home ${invoice.unit_number}, ${formatPeriod(invoice.period_month)}` : 'Loading invoice...'}
               </p>
             </div>
           </div>

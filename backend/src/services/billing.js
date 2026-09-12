@@ -3,7 +3,7 @@
  * on their own.
  *
  * All internal maths runs in paise as integers. Splitting a common bill across
- * flats in floating point loses fractions of a rupee, and over a year of runs
+ * homes in floating point loses fractions of a rupee, and over a year of runs
  * the building's books stop reconciling. Every split here sums back exactly to
  * the amount that went in.
  */
@@ -15,7 +15,7 @@ const toRupees = (paise) => Number((paise / 100).toFixed(2));
  * Divides totalPaise across the given weights, handing out the leftover paise
  * one at a time so the parts always add up to the whole.
  *
- * Weights are flat counts for an equal split, or square footage for a
+ * Weights are home counts for an equal split, or square footage for a
  * proportional one.
  */
 function splitPaise(totalPaise, weights) {
@@ -32,7 +32,7 @@ function splitPaise(totalPaise, weights) {
   const shares = weights.map((w) => Math.floor((totalPaise * w) / totalWeight));
   let remainder = totalPaise - shares.reduce((sum, s) => sum + s, 0);
 
-  // Largest weights absorb the odd paise, so the biggest flat rounds up first.
+  // Largest weights absorb the odd paise, so the biggest home rounds up first.
   const order = weights
     .map((weight, index) => ({ weight, index }))
     .sort((a, b) => b.weight - a.weight || a.index - b.index);
@@ -55,7 +55,7 @@ function splitPaise(totalPaise, weights) {
  *           commonWaterTotal, splitBasis }
  *
  * Returns { lines, totals } or throws when a per-square-foot basis is asked for
- * and some flat has no recorded area, since guessing an area would silently
+ * and some home has no recorded area, since guessing an area would silently
  * misbill somebody.
  */
 function buildRunLines(units, config) {

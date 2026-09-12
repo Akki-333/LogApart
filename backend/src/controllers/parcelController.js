@@ -5,8 +5,8 @@ const { isAdminRole } = require('../middleware/auth');
 /**
  * Parcels the desk is holding.
  *
- * A delivery arriving at an empty flat used to be a guard's memory and a note
- * on a pad. It is recorded against the flat, the resident is told, and
+ * A delivery arriving at an empty home used to be a guard's memory and a note
+ * on a pad. It is recorded against the home, the resident is told, and
  * collection is signed for by name, so "I never got it" has an answer.
  */
 
@@ -28,7 +28,7 @@ const SELECT = `
   LEFT JOIN users releaser ON p.released_by_id = releaser.id
 `;
 
-/** 1. What the desk is holding. A resident sees only their own flat's. */
+/** 1. What the desk is holding. A resident sees only their own home's. */
 exports.getParcels = async (req, res) => {
   try {
     const filters = [];
@@ -73,7 +73,7 @@ exports.receiveParcel = async (req, res) => {
     const [units] = await db.execute('SELECT number FROM units WHERE id = ?', [unitId]);
 
     if (units.length === 0) {
-      return res.status(404).json({ success: false, message: 'No such flat.' });
+      return res.status(404).json({ success: false, message: 'No such home.' });
     }
 
     const [result] = await db.execute(
@@ -81,7 +81,7 @@ exports.receiveParcel = async (req, res) => {
       [unitId, courier || null, description || null, req.user.id]
     );
 
-    // Addressed to the residents of that flat, so the whole building is not
+    // Addressed to the residents of that home, so the whole building is not
     // told that somebody has a parcel waiting.
     const [residents] = await db.execute(
       'SELECT user_id FROM residents WHERE unit_id = ? AND is_active = true',
@@ -91,7 +91,7 @@ exports.receiveParcel = async (req, res) => {
     for (const resident of residents) {
       await createNotification({
         title: 'A parcel is waiting at the gate',
-        message: `${courier || 'A delivery'} for flat ${units[0].number}${description ? `: ${description}` : ''}.`,
+        message: `${courier || 'A delivery'} for home ${units[0].number}${description ? `: ${description}` : ''}.`,
         target_role: 'RESIDENT',
         target_user_id: resident.user_id,
         type: 'GATE'
@@ -100,7 +100,7 @@ exports.receiveParcel = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Held for flat ${units[0].number}. They have been told.`,
+      message: `Held for home ${units[0].number}. They have been told.`,
       data: { id: result.insertId }
     });
   } catch (error) {

@@ -8,7 +8,7 @@ const when = (value) =>
   });
 
 /**
- * The conversation on one issue, shared by the office and the flat.
+ * The conversation on one issue, shared by the office and the home.
  *
  * The rating and the reopen button only appear for the resident who raised it,
  * because the API refuses them from anybody else and a button that always

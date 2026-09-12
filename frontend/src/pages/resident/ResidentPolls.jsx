@@ -27,7 +27,7 @@ export default function ResidentPolls() {
   useEffect(() => { load(); }, [load]);
 
   const vote = async (poll, option) => {
-    if (!window.confirm(`Vote "${option.label}" on behalf of your flat? A household votes once.`)) return;
+    if (!window.confirm(`Vote "${option.label}" on behalf of your home? A household votes once.`)) return;
 
     try {
       const response = await api.post(`/api/polls/${poll.id}/vote`, { option_id: option.id });
@@ -46,7 +46,7 @@ export default function ResidentPolls() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black text-slate-900">Decisions</h1>
-        <p className="text-sm text-slate-500 mt-0.5">One vote per flat. Results appear once voting closes.</p>
+        <p className="text-sm text-slate-500 mt-0.5">One vote per home. Results appear once voting closes.</p>
       </div>
 
       {banner && (
@@ -64,8 +64,8 @@ export default function ResidentPolls() {
         <div className="space-y-4">
           {polls.map((poll) => {
             const voted = poll.own_vote !== null;
-            const turnout = poll.eligible_flats > 0
-              ? Math.round((poll.votes_cast / poll.eligible_flats) * 100)
+            const turnout = poll.eligible_homes > 0
+              ? Math.round((poll.votes_cast / poll.eligible_homes) * 100)
               : 0;
 
             return (
@@ -75,7 +75,7 @@ export default function ResidentPolls() {
                   {poll.detail && <p className="text-xs text-slate-500 mt-1">{poll.detail}</p>}
                   <p className="text-[11px] text-slate-400 mt-1.5 flex items-center gap-2">
                     <Users className="w-3 h-3" />
-                    {poll.votes_cast} of {poll.eligible_flats} flats voted, {turnout}% turnout ·{' '}
+                    {poll.votes_cast} of {poll.eligible_homes} homes voted, {turnout}% turnout ·{' '}
                     {poll.has_closed ? `closed ${formatDay(poll.closes_on)}` : `closes ${formatDay(poll.closes_on)}`}
                   </p>
                 </div>
@@ -116,13 +116,13 @@ export default function ResidentPolls() {
 
                   {!poll.has_closed && !voted && (
                     <p className="text-[11px] text-slate-400 pt-1">
-                      Your flat has not voted yet. Whoever votes first votes for the household.
+                      Your home has not voted yet. Whoever votes first votes for the household.
                     </p>
                   )}
 
                   {!poll.has_closed && voted && (
                     <p className="text-[11px] text-slate-400 pt-1">
-                      Your flat has voted. The count stays closed until {formatDay(poll.closes_on)}.
+                      Your home has voted. The count stays closed until {formatDay(poll.closes_on)}.
                     </p>
                   )}
                 </div>

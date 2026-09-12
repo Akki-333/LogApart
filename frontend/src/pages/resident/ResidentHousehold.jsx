@@ -3,7 +3,7 @@ import api from '../../lib/api';
 import { Users, Car, Trash2, Plus, BookUser, Phone } from 'lucide-react';
 
 /**
- * Who lives here, what they drive, and whether the flat wants to be findable.
+ * Who lives here, what they drive, and whether the home wants to be findable.
  * The directory is off by default, and leaving it never stops you reading it.
  */
 export default function ResidentHousehold() {
@@ -79,7 +79,7 @@ export default function ResidentHousehold() {
       <div>
         <h1 className="text-2xl font-black text-slate-900">My Household</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Flat {household.unit.number}, and the neighbours who chose to be listed
+          Home {household.unit.number}, and the neighbours who chose to be listed
         </p>
       </div>
 
@@ -194,7 +194,7 @@ export default function ResidentHousehold() {
 
         {directory.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-400">
-            Nobody has joined the directory yet. Listing yourself shows your name, flat and
+            Nobody has joined the directory yet. Listing yourself shows your name, home and
             phone number to other residents only.
           </p>
         ) : (
@@ -203,7 +203,7 @@ export default function ResidentHousehold() {
               <li key={`${person.unit_number}-${person.name}`} className="px-5 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-800">{person.name}</p>
-                  <p className="text-[11px] text-slate-500">Flat {person.unit_number} · floor {person.floor}</p>
+                  <p className="text-[11px] text-slate-500">Home {person.unit_number} · floor {person.floor}</p>
                 </div>
                 {person.phone && (
                   <a href={`tel:${person.phone}`} className="flex items-center gap-1.5 text-xs font-semibold text-teal-700">

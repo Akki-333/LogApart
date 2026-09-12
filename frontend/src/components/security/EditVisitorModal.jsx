@@ -48,7 +48,7 @@ export default function EditVisitorModal({ isOpen, onClose, onSubmit, visitor, u
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800">Edit Gate Entry</h2>
-              <p className="text-xs text-slate-500">Correct visitor information or flat details</p>
+              <p className="text-xs text-slate-500">Correct visitor information or home details</p>
             </div>
           </div>
           <button 
@@ -61,11 +61,11 @@ export default function EditVisitorModal({ isOpen, onClose, onSubmit, visitor, u
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           
-          {/* Visiting Flat & Purpose */}
+          {/* Visiting Home & Purpose */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
-                <Home className="w-3.5 h-3.5 text-slate-400" /> Visiting Flat *
+                <Home className="w-3.5 h-3.5 text-slate-400" /> Visiting Home *
               </label>
               <select
                 required
@@ -73,10 +73,10 @@ export default function EditVisitorModal({ isOpen, onClose, onSubmit, visitor, u
                 onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
                 className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm font-semibold text-slate-800 bg-white"
               >
-                <option value="">Select Flat</option>
+                <option value="">Select Home</option>
                 {units?.map(unit => (
                   <option key={unit.unit_id} value={unit.unit_id}>
-                    Flat {unit.number} (Floor {unit.floor})
+                    Home {unit.number} (Floor {unit.floor})
                   </option>
                 ))}
               </select>

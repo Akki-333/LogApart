@@ -13,7 +13,7 @@ const generatePassCode = () =>
     .join('');
 
 /**
- * The flat this user currently lives in. Every resident endpoint scopes to it,
+ * The home this user currently lives in. Every resident endpoint scopes to it,
  * so a resident can only ever read their own unit.
  */
 const getActiveUnit = async (userId) => {
@@ -38,7 +38,7 @@ const withUnit = (handler) => async (req, res) => {
       return res.status(404).json({
         success: false,
         code: 'NO_ACTIVE_UNIT',
-        message: 'Your account is not currently linked to a flat. Please contact the building admin.'
+        message: 'Your account is not currently linked to a home. Please contact the building admin.'
       });
     }
 
@@ -116,7 +116,7 @@ exports.getSummary = withUnit(async (req, res, unit) => {
   });
 });
 
-/** 2. Every invoice ever raised against this flat, with its settlements. */
+/** 2. Every invoice ever raised against this home, with its settlements. */
 exports.getInvoices = withUnit(async (req, res, unit) => {
   const [rows] = await db.execute(
     `SELECT i.*, b.note AS run_note
@@ -193,7 +193,7 @@ exports.getInvoices = withUnit(async (req, res, unit) => {
 });
 
 /**
- * 3. Issues for this flat, plus every common-area issue. A stuck lift concerns
+ * 3. Issues for this home, plus every common-area issue. A stuck lift concerns
  * this resident too, and seeing it already reported stops a second report.
  */
 exports.getTickets = withUnit(async (req, res, unit) => {
@@ -215,17 +215,17 @@ exports.getTickets = withUnit(async (req, res, unit) => {
     success: true,
     data: rows.map((row) => ({
       ...row,
-      place: row.scope === 'COMMON' ? row.location || 'Common area' : `Flat ${unit.number}`,
+      place: row.scope === 'COMMON' ? row.location || 'Common area' : `Home ${unit.number}`,
       is_mine: row.scope !== 'COMMON',
       // Rating and reopening belong to whoever raised it, which is not the same
-      // thing as the flat it was raised against.
+      // thing as the home it was raised against.
       raised_by_me: row.created_by_id === req.user.id
     }))
   });
 });
 
 /**
- * 4. Raise an issue. Scope is fixed to the resident's own flat and priority is
+ * 4. Raise an issue. Scope is fixed to the resident's own home and priority is
  * set by the admin, not the reporter, so the SLA clock cannot be gamed from the
  * portal. Everything arrives as MEDIUM for triage.
  */
@@ -260,7 +260,7 @@ exports.createTicket = withUnit(async (req, res, unit) => {
   createNotification({
     title: isCommon
       ? `Common area issue: ${String(location).trim()}`
-      : `New issue from Flat ${unit.number}`,
+      : `New issue from Home ${unit.number}`,
     message: `${req.user.name}: ${String(title).trim()}`,
     target_role: 'ADMIN',
     type: 'MAINTENANCE'
@@ -269,7 +269,7 @@ exports.createTicket = withUnit(async (req, res, unit) => {
   res.json({ success: true, message: 'Issue reported. The building admin has been notified.' });
 });
 
-/** 5. Gate activity for this flat only. */
+/** 5. Gate activity for this home only. */
 exports.getVisitorLogs = withUnit(async (req, res, unit) => {
   const [rows] = await db.execute(
     `SELECT id, visitor_name, visitor_phone, vehicle_number, vehicle_type,
@@ -302,7 +302,7 @@ exports.getPasses = withUnit(async (req, res, unit) => {
 /**
  * 7. Pre-approve a visitor. Creates the gate entry ahead of time with a short
  * code; the guard searches that code and admits the guest without ringing the
- * flat. Nothing is marked as entered until the guard admits it.
+ * home. Nothing is marked as entered until the guard admits it.
  */
 exports.createPass = withUnit(async (req, res, unit) => {
   const { visitor_name: visitorName, visitor_phone: visitorPhone, purpose, vehicle_number: vehicleNumber, expected_on: expectedOn } = req.body;
@@ -344,7 +344,7 @@ exports.createPass = withUnit(async (req, res, unit) => {
       );
 
       createNotification({
-        title: `Expected visitor for Flat ${unit.number}`,
+        title: `Expected visitor for Home ${unit.number}`,
         message: `${String(visitorName).trim()} is pre-approved for ${expectedOn}. Gate code ${code}.`,
         target_role: 'SECURITY',
         type: 'GATE'
@@ -371,7 +371,7 @@ exports.cancelPass = withUnit(async (req, res, unit) => {
   );
 
   if (rows.length === 0) {
-    return res.status(404).json({ success: false, message: 'Pass not found for your flat.' });
+    return res.status(404).json({ success: false, message: 'Pass not found for your home.' });
   }
 
   if (rows[0].entry_time) {
@@ -391,7 +391,7 @@ exports.getActiveUnit = getActiveUnit;
  * The friction this removes is real: a resident pays by UPI in ten seconds and
  * then spends a week reminding somebody to write it down. A declaration is
  * their side of that conversation. It never moves the balance on its own, so
- * nothing here can be used to mark a flat paid without an admin agreeing.
+ * nothing here can be used to mark a home paid without an admin agreeing.
  */
 exports.declarePayment = withUnit(async (req, res, unit) => {
   const { invoice_id: invoiceId, amount, mode, reference, paid_on: paidOn, note } = req.body;
@@ -452,7 +452,7 @@ exports.declarePayment = withUnit(async (req, res, unit) => {
   );
 
   await createNotification({
-    title: `Payment declared by flat ${unit.number}`,
+    title: `Payment declared by home ${unit.number}`,
     message: `${toRupees(amountPaise)} by ${mode || 'UPI'}${reference ? `, reference ${reference}` : ''}. Confirm it against the account.`,
     target_role: 'ADMIN',
     type: 'BILLING'
@@ -465,7 +465,7 @@ exports.declarePayment = withUnit(async (req, res, unit) => {
   });
 });
 
-/** 10. Every payment this flat has declared, and what came of it. */
+/** 10. Every payment this home has declared, and what came of it. */
 exports.getDeclarations = withUnit(async (req, res, unit) => {
   const [rows] = await db.execute(
     `SELECT d.*, i.period_month
@@ -484,7 +484,7 @@ exports.getDeclarations = withUnit(async (req, res, unit) => {
  * 11. The document vault.
  *
  * Nothing new is stored here. Bills, receipts, clearance certificates and the
- * notices addressed to the flat already exist in four different tables, and a
+ * notices addressed to the home already exist in four different tables, and a
  * resident who wants last March's receipt should not have to remember which
  * screen it was on.
  */
@@ -504,7 +504,7 @@ exports.getDocuments = withUnit(async (req, res, unit) => {
     [unit.unit_id]
   );
 
-  // Certificates are keyed on the person as well as the flat, so a previous
+  // Certificates are keyed on the person as well as the home, so a previous
   // tenant's clearance never turns up in the current resident's vault.
   const [certificates] = await db.execute(
     `SELECT certificate_number, move_out_date, outstanding_at_issue, dues_waived, waiver_reason

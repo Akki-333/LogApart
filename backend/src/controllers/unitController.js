@@ -48,7 +48,7 @@ exports.getUnits = async (req, res) => {
     res.json({ 
       success: true, 
       data: buildingMap,
-      flatList: rows
+      homeList: rows
     });
   } catch (error) {
     console.error('Error fetching units:', error);
@@ -112,7 +112,7 @@ exports.assignResident = async (req, res) => {
       action: 'ONBOARD_RESIDENT',
       entity: 'units',
       entity_id: unit_id,
-      summary: `Onboarded ${name} into flat ${unitCheck[0].number}`,
+      summary: `Onboarded ${name} into home ${unitCheck[0].number}`,
       after: { user_id: userId, name, email, phone: phone || '', type: type || 'TENANT', move_in_date: moveDate }
     }, connection);
 
@@ -174,7 +174,7 @@ exports.updateResident = async (req, res) => {
       action: 'EDIT_RESIDENT',
       entity: 'units',
       entity_id: unit_id,
-      summary: `Edited the resident record on flat ${unit_id}`,
+      summary: `Edited the resident record on home ${unit_id}`,
       after: { name, phone, emergency_contact, type, area }
     });
 
@@ -219,7 +219,7 @@ exports.vacateUnit = async (req, res) => {
 
     if (residentRows.length === 0) {
       await connection.rollback();
-      return res.status(400).json({ success: false, message: 'That flat has no active resident to move out.' });
+      return res.status(400).json({ success: false, message: 'That home has no active resident to move out.' });
     }
 
     const resident = residentRows[0];
@@ -230,7 +230,7 @@ exports.vacateUnit = async (req, res) => {
       return res.status(409).json({
         success: false,
         code: 'OUTSTANDING_DUES',
-        message: `Flat ${unitRows[0].number} has ${dues.balance} outstanding across ${dues.open_invoices} invoice(s). Settle the dues or record a waiver.`,
+        message: `Home ${unitRows[0].number} has ${dues.balance} outstanding across ${dues.open_invoices} invoice(s). Settle the dues or record a waiver.`,
         data: dues
       });
     }
@@ -277,14 +277,14 @@ exports.vacateUnit = async (req, res) => {
     );
 
     // Their token is good for another day and still says RESIDENT. Bumping the
-    // version ends it now, and an account with no other flat is closed outright
+    // version ends it now, and an account with no other home is closed outright
     // rather than left signed in to a building they have left.
-    const [otherFlats] = await connection.execute(
+    const [otherHomes] = await connection.execute(
       'SELECT COUNT(*) AS live FROM residents WHERE user_id = ? AND is_active = true',
       [resident.user_id]
     );
 
-    const stillLivesHere = Number(otherFlats[0].live) > 0;
+    const stillLivesHere = Number(otherHomes[0].live) > 0;
 
     await connection.execute(
       'UPDATE users SET token_version = token_version + 1, is_active = ? WHERE id = ?',
@@ -296,8 +296,8 @@ exports.vacateUnit = async (req, res) => {
       entity: 'units',
       entity_id: unitId,
       summary: dues.balance > 0
-        ? `Moved ${resident.name} out of flat ${unitRows[0].number} with ${dues.balance} waived: ${String(waiverReason).trim()}`
-        : `Moved ${resident.name} out of flat ${unitRows[0].number}, dues clear`,
+        ? `Moved ${resident.name} out of home ${unitRows[0].number} with ${dues.balance} waived: ${String(waiverReason).trim()}`
+        : `Moved ${resident.name} out of home ${unitRows[0].number}, dues clear`,
       before: { resident_user_id: resident.user_id, outstanding: dues },
       after: {
         certificate_number: certificateNumber,
@@ -332,7 +332,7 @@ exports.vacateUnit = async (req, res) => {
   }
 };
 
-// 5. Outstanding dues for one flat, used by the move-out screen before it asks
+// 5. Outstanding dues for one home, used by the move-out screen before it asks
 // the admin to confirm.
 exports.getUnitDues = async (req, res) => {
   try {
@@ -344,7 +344,7 @@ exports.getUnitDues = async (req, res) => {
   }
 };
 
-// 6. Re-issue a one-time password for the flat's resident.
+// 6. Re-issue a one-time password for the home's resident.
 //
 // Onboarding was the only thing that ever issued a password, so a resident who
 // forgot theirs was locked out for good. This is the recovery path, and it runs
@@ -371,7 +371,7 @@ exports.reissuePassword = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'That flat has no active resident.' });
+      return res.status(404).json({ success: false, message: 'That home has no active resident.' });
     }
 
     const person = rows[0];
@@ -391,7 +391,7 @@ exports.reissuePassword = async (req, res) => {
       action: 'REISSUE_PASSWORD',
       entity: 'users',
       entity_id: person.id,
-      summary: `Re-issued the password for ${person.name} of flat ${person.unit_number}: ${reason}`,
+      summary: `Re-issued the password for ${person.name} of home ${person.unit_number}: ${reason}`,
       after: { forced_change: true, sessions_ended: true }
     });
 

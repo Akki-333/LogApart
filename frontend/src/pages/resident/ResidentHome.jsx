@@ -52,7 +52,7 @@ export default function ResidentHome() {
           </h1>
           <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
             <Home className="w-3.5 h-3.5" />
-            Flat {unit.number}, floor {unit.floor}
+            Home {unit.number}, floor {unit.floor}
             {unit.move_in_date ? ` · resident since ${formatDay(unit.move_in_date)}` : ''}
           </p>
         </div>
@@ -151,7 +151,7 @@ export default function ResidentHome() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-slate-900">Recent visitors to your flat</h3>
+            <h3 className="text-sm font-bold text-slate-900">Recent visitors to your home</h3>
             <button
               onClick={() => navigate('/resident/gate')}
               className="text-xs font-bold text-indigo-600 hover:underline flex items-center"
@@ -162,7 +162,7 @@ export default function ResidentHome() {
 
           {visitors.length === 0 ? (
             <div className="text-center py-8 text-xs text-slate-400 border-2 border-dashed border-slate-100 rounded-xl">
-              Nothing logged at the gate for your flat yet.
+              Nothing logged at the gate for your home yet.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">

@@ -23,7 +23,7 @@ exports.createNotification = async ({
 };
 
 // Rows addressed to this user's role, plus rows addressed to them by name. A
-// row with a named recipient is theirs alone, so a dues reminder to one flat is
+// row with a named recipient is theirs alone, so a dues reminder to one home is
 // never a notice to the building.
 //
 // The parentheses matter: AND binds tighter than OR, so without them an

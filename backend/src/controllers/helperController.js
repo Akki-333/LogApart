@@ -40,7 +40,7 @@ exports.getHelpers = async (req, res) => {
   }
 };
 
-/** 2. Register a helper and link the flats they work for. */
+/** 2. Register a helper and link the homes they work for. */
 exports.createHelper = async (req, res) => {
   const { name, phone, helper_type: helperType, id_proof_type: idProofType, id_proof_number: idProofNumber, unit_ids: unitIds } = req.body;
 
@@ -49,7 +49,7 @@ exports.createHelper = async (req, res) => {
   }
 
   if (!Array.isArray(unitIds) || unitIds.length === 0) {
-    return res.status(400).json({ success: false, message: 'Link the helper to at least one flat.' });
+    return res.status(400).json({ success: false, message: 'Link the helper to at least one home.' });
   }
 
   const connection = await db.getConnection();
@@ -81,7 +81,7 @@ exports.createHelper = async (req, res) => {
   }
 };
 
-/** 3. Update a helper and re-link their flats. */
+/** 3. Update a helper and re-link their homes. */
 exports.updateHelper = async (req, res) => {
   const { id } = req.params;
   const { name, phone, helper_type: helperType, id_proof_type: idProofType, id_proof_number: idProofNumber, unit_ids: unitIds, is_active: isActive } = req.body;
@@ -110,7 +110,7 @@ exports.updateHelper = async (req, res) => {
     if (Array.isArray(unitIds)) {
       if (unitIds.length === 0) {
         await connection.rollback();
-        return res.status(400).json({ success: false, message: 'A helper must be linked to at least one flat.' });
+        return res.status(400).json({ success: false, message: 'A helper must be linked to at least one home.' });
       }
 
       await connection.execute('DELETE FROM helper_units WHERE helper_id = ?', [id]);
@@ -132,7 +132,7 @@ exports.updateHelper = async (req, res) => {
 };
 
 /**
- * 4. One tap at the gate. Every flat the helper works for is told they have
+ * 4. One tap at the gate. Every home the helper works for is told they have
  * arrived, which is the point of the registry: the resident knows without
  * anyone having to call them.
  */
@@ -177,7 +177,7 @@ exports.checkIn = async (req, res) => {
 
     createNotification({
       title: `${helper.name} has arrived`,
-      message: `Your ${String(helper.helper_type).toLowerCase()} checked in at the gate for Flat ${helper.unit_numbers}.`,
+      message: `Your ${String(helper.helper_type).toLowerCase()} checked in at the gate for Home ${helper.unit_numbers}.`,
       target_role: 'RESIDENT',
       type: 'GATE'
     });
@@ -248,7 +248,7 @@ exports.getAttendance = async (req, res) => {
 };
 
 /**
- * 7. The helpers who work for the caller's own flat, for the resident portal.
+ * 7. The helpers who work for the caller's own home, for the resident portal.
  * Scoped by unit, so a resident sees their own help and nobody else's.
  */
 exports.getMyHelpers = async (req, res) => {
@@ -262,7 +262,7 @@ exports.getMyHelpers = async (req, res) => {
       return res.status(404).json({
         success: false,
         code: 'NO_ACTIVE_UNIT',
-        message: 'Your account is not currently linked to a flat.'
+        message: 'Your account is not currently linked to a home.'
       });
     }
 

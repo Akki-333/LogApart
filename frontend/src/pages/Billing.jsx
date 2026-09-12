@@ -163,7 +163,7 @@ export default function Billing() {
               ></div>
             </div>
             <span className="text-[11px] text-slate-500 mt-1 inline-block">
-              {overview?.month.collection_rate || 0}% collected, {overview?.month.settled_count || 0} flats settled
+              {overview?.month.collection_rate || 0}% collected, {overview?.month.settled_count || 0} homes settled
             </span>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function Billing() {
             <span className="p-2 bg-rose-50 text-rose-700 rounded-xl"><AlertCircle className="w-4 h-4" /></span>
           </div>
           <div className="text-2xl font-black text-rose-700 mt-1">{formatRupeesShort(overview?.all_time_outstanding)}</div>
-          <span className="text-[11px] text-slate-500">{overview?.defaulters.length || 0} flats with a balance</span>
+          <span className="text-[11px] text-slate-500">{overview?.defaulters.length || 0} homes with a balance</span>
         </div>
       </div>
 
@@ -220,11 +220,11 @@ export default function Billing() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Flats with an open balance</h3>
+              <h3 className="text-sm font-bold text-slate-900">Homes with an open balance</h3>
               <p className="text-xs text-slate-400">Longest outstanding first</p>
             </div>
             <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full">
-              {overview?.defaulters.length || 0} flats
+              {overview?.defaulters.length || 0} homes
             </span>
           </div>
 
@@ -234,25 +234,25 @@ export default function Billing() {
             </div>
           ) : (
             <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
-              {overview.defaulters.map((flat) => (
-                <div key={flat.unit_id} className="flex items-center justify-between py-2.5">
+              {overview.defaulters.map((home) => (
+                <div key={home.unit_id} className="flex items-center justify-between py-2.5">
                   <div className="flex items-center gap-3">
                     <span className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-sm font-black text-slate-700">
-                      {flat.unit_number}
+                      {home.unit_number}
                     </span>
                     <div>
-                      <div className="text-xs font-bold text-slate-800">{flat.resident_name || 'No resident on record'}</div>
+                      <div className="text-xs font-bold text-slate-800">{home.resident_name || 'No resident on record'}</div>
                       <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                        {flat.resident_phone ? (<><Phone className="w-3 h-3" />{flat.resident_phone}</>) : 'No phone'}
+                        {home.resident_phone ? (<><Phone className="w-3 h-3" />{home.resident_phone}</>) : 'No phone'}
                         <span className="mx-1">•</span>
-                        {flat.open_invoices} invoice{flat.open_invoices === 1 ? '' : 's'}
+                        {home.open_invoices} invoice{home.open_invoices === 1 ? '' : 's'}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-black text-slate-900">{formatRupees(flat.balance)}</div>
-                    <div className={`text-[11px] font-semibold ${flat.days_overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
-                      {flat.days_overdue > 0 ? `${flat.days_overdue} days late` : 'Not yet due'}
+                    <div className="text-sm font-black text-slate-900">{formatRupees(home.balance)}</div>
+                    <div className={`text-[11px] font-semibold ${home.days_overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                      {home.days_overdue > 0 ? `${home.days_overdue} days late` : 'Not yet due'}
                     </div>
                   </div>
                 </div>
@@ -283,7 +283,7 @@ export default function Billing() {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Flat or resident"
+                placeholder="Home or resident"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium outline-none focus:bg-white focus:border-teal-500 w-44"
@@ -324,7 +324,7 @@ export default function Billing() {
             </p>
             {invoices.length === 0 && (
               <p className="text-xs text-slate-400 mt-1">
-                Use Generate Dues to raise this month's bills across the occupied flats.
+                Use Generate Dues to raise this month's bills across the occupied homes.
               </p>
             )}
           </div>
@@ -333,7 +333,7 @@ export default function Billing() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
-                  <th className="px-5 py-3 font-bold">Flat</th>
+                  <th className="px-5 py-3 font-bold">Home</th>
                   <th className="px-5 py-3 font-bold">Resident</th>
                   <th className="px-5 py-3 font-bold text-right">Maintenance</th>
                   <th className="px-5 py-3 font-bold text-right">Electricity</th>

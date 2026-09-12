@@ -34,7 +34,7 @@ export default function HelpersTab({ onAction }) {
     Promise.all([api.get('/api/helpers'), api.get('/api/units')])
       .then(([h, u]) => {
         setHelpers(h.data.data);
-        setUnits((u.data.flatList || []).filter((unit) => unit.is_occupied));
+        setUnits((u.data.homeList || []).filter((unit) => unit.is_occupied));
       })
       .catch((err) => console.error('Failed to load helpers', err))
       .finally(() => setLoading(false));
@@ -100,7 +100,7 @@ export default function HelpersTab({ onAction }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-500">
-          Registered once, then checked in at the gate with one tap. Every flat they
+          Registered once, then checked in at the gate with one tap. Every home they
           work for is told they have arrived.
         </p>
         <button
@@ -196,7 +196,7 @@ export default function HelpersTab({ onAction }) {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit helper' : 'Add a helper'}</h2>
-                  <p className="text-xs text-slate-500">Link them to every flat they work for</p>
+                  <p className="text-xs text-slate-500">Link them to every home they work for</p>
                 </div>
               </div>
               <button onClick={() => setIsOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
@@ -244,7 +244,7 @@ export default function HelpersTab({ onAction }) {
               </div>
 
               <div>
-                <label className={label}>Flats they work for</label>
+                <label className={label}>Homes they work for</label>
                 <div className="mt-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50">
                   {units.map((unit) => (
                     <button
@@ -262,7 +262,7 @@ export default function HelpersTab({ onAction }) {
                   ))}
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500">
-                  {form.unit_ids.length} selected. One helper often works for several flats.
+                  {form.unit_ids.length} selected. One helper often works for several homes.
                 </p>
               </div>
 

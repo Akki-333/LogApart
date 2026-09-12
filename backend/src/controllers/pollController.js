@@ -6,7 +6,7 @@ const { isAdminRole } = require('../middleware/auth');
 /**
  * How the society decides things.
  *
- * One vote per flat, not per person. A household is one stake in the building
+ * One vote per home, not per person. A household is one stake in the building
  * whether two people live in it or five, and the unique key on the unit is what
  * enforces that rather than a check that a second family member could race.
  *
@@ -46,7 +46,7 @@ const tallyFor = async (pollId) => {
   }));
 };
 
-/** 1. Polls a caller can see, with their own flat's vote and the state of play. */
+/** 1. Polls a caller can see, with their own home's vote and the state of play. */
 exports.getPolls = async (req, res) => {
   const admin = isAdminRole(req.user.role);
 
@@ -64,10 +64,10 @@ exports.getPolls = async (req, res) => {
        LIMIT 100`
     );
 
-    // Occupied flats, because that is the number a turnout figure means
-    // something against. An empty flat cannot vote.
+    // Occupied homes, because that is the number a turnout figure means
+    // something against. An empty home cannot vote.
     const [[population]] = await db.query(
-      'SELECT COUNT(*) AS flats FROM units WHERE is_occupied = 1'
+      'SELECT COUNT(*) AS homes FROM units WHERE is_occupied = 1'
     );
 
     const data = [];
@@ -93,7 +93,7 @@ exports.getPolls = async (req, res) => {
         ...poll,
         has_closed: closed,
         votes_cast: Number(poll.votes_cast),
-        eligible_flats: Number(population.flats),
+        eligible_homes: Number(population.homes),
         options,
         own_vote: ownVote,
         // An admin needs the tally to run the meeting. A resident gets it when
@@ -109,7 +109,7 @@ exports.getPolls = async (req, res) => {
   }
 };
 
-/** 2. Cast the flat's vote. */
+/** 2. Cast the home's vote. */
 exports.vote = async (req, res) => {
   const { option_id: optionId } = req.body;
 
@@ -117,7 +117,7 @@ exports.vote = async (req, res) => {
     const unit = await activeUnitFor(req.user.id);
 
     if (!unit) {
-      return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a flat.' });
+      return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a home.' });
     }
 
     const [options] = await db.execute(
@@ -147,14 +147,14 @@ exports.vote = async (req, res) => {
       [option.poll_id, option.id, unit.unit_id, req.user.id]
     );
 
-    res.json({ success: true, message: `Flat ${unit.number} voted for ${option.label}.` });
+    res.json({ success: true, message: `Home ${unit.number} voted for ${option.label}.` });
   } catch (error) {
-    // One vote per flat. A second member of the same household is told whose
+    // One vote per home. A second member of the same household is told whose
     // vote already stands rather than quietly overwriting it.
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({
         success: false,
-        message: 'Your flat has already voted on this. A household gets one vote.'
+        message: 'Your home has already voted on this. A household gets one vote.'
       });
     }
 
@@ -204,7 +204,7 @@ exports.createPoll = async (req, res) => {
     await connection.commit();
 
     createNotification({
-      title: 'A decision needs your flat',
+      title: 'A decision needs your home',
       message: `${question} Voting closes ${closesOn}.`,
       target_role: 'RESIDENT',
       type: 'COMMUNITY'
@@ -262,7 +262,7 @@ exports.updatePoll = async (req, res) => {
 };
 
 /**
- * 5. Which flats have voted and which have not, so the committee can chase a
+ * 5. Which homes have voted and which have not, so the committee can chase a
  * quorum. Deliberately not which way anybody voted.
  */
 exports.getTurnout = async (req, res) => {

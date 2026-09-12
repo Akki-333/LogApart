@@ -35,13 +35,13 @@ export default function Maintenance() {
     try {
       const response = await api.get('/api/units');
       // Flatten the grouped units data for a simple dropdown
-      const flatUnits = [];
+      const homeUnits = [];
       Object.values(response.data.data).forEach(block => {
         Object.values(block.floors).forEach(floorUnits => {
-          flatUnits.push(...floorUnits);
+          homeUnits.push(...floorUnits);
         });
       });
-      setUnits(flatUnits);
+      setUnits(homeUnits);
     } catch (error) {
       console.error('Failed to fetch units', error);
     }

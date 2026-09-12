@@ -11,7 +11,7 @@ export default function ResidentsTable({
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400">
         <User className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-        <p className="text-sm font-semibold">No flats or residents match your search filter.</p>
+        <p className="text-sm font-semibold">No homes or residents match your search filter.</p>
       </div>
     );
   }
@@ -39,7 +39,7 @@ export default function ResidentsTable({
                 className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                 onClick={() => onUnitClick(unit)}
               >
-                {/* Flat Number */}
+                {/* Home Number */}
                 <td className="px-6 py-4">
                   <span className="font-extrabold text-slate-900 text-base">
                     {unit.number}

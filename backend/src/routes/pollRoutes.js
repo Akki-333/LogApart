@@ -19,7 +19,7 @@ router.post(
 );
 router.put('/:id', requireRole('ADMIN'), pollController.updatePoll);
 
-// Which flats have voted, never which way.
+// Which homes have voted, never which way.
 router.get('/:id/turnout', requireRole('ADMIN'), pollController.getTurnout);
 
 module.exports = router;

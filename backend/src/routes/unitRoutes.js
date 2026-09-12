@@ -6,7 +6,7 @@ const { validate } = require('../middleware/validate');
 
 // Mounted behind protect + requirePasswordSet in server.js, so req.user is set here.
 
-// The guard desk reads units to populate its "visiting flat" dropdown.
+// The guard desk reads units to populate its "visiting home" dropdown.
 router.get('/', requireRole('ADMIN', 'SECURITY'), unitController.getUnits);
 
 // Resident lifecycle is administrative only.

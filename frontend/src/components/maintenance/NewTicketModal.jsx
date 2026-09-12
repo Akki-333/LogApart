@@ -64,7 +64,7 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
                 }`}
               >
                 <Home className="w-4 h-4 mr-2" />
-                One flat
+                One home
               </button>
             </div>
 
@@ -84,7 +84,7 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
                   {COMMON_PLACES.map((place) => <option key={place} value={place} />)}
                 </datalist>
                 <p className="mt-1 text-xs text-slate-500">
-                  Lifts, pumps, hallway lights and the terrace belong to the building, not to a flat.
+                  Lifts, pumps, hallway lights and the terrace belong to the building, not to a home.
                 </p>
               </>
             ) : (
@@ -96,7 +96,7 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
               >
                 <option value="">Select Unit</option>
                 {units?.map(unit => (
-                  <option key={unit.unit_id} value={unit.unit_id}>Flat {unit.number}</option>
+                  <option key={unit.unit_id} value={unit.unit_id}>Home {unit.number}</option>
                 ))}
               </select>
             )}

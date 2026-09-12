@@ -6,8 +6,8 @@
  * Start the server, then: npm run verify:life
  *
  * Everything the run creates is tagged and removed on the way out. The poll
- * checks need two residents in different flats, so the run claims two empty
- * flats and puts them back as it found them.
+ * checks need two residents in different homes, so the run claims two empty
+ * homes and puts them back as it found them.
  */
 
 require('dotenv').config();
@@ -91,7 +91,7 @@ async function run() {
     const bob = await makeUser('RESIDENT', 'bob');
     const carol = await makeUser('RESIDENT', 'carol');
 
-    // Two empty flats, so the poll checks have two households to vote with.
+    // Two empty homes, so the poll checks have two households to vote with.
     const [freeUnits] = await db.query(
       `SELECT u.id, u.number, u.is_occupied FROM units u
        LEFT JOIN residents r ON r.unit_id = u.id AND r.is_active = true
@@ -99,21 +99,21 @@ async function run() {
     );
 
     if (freeUnits.length < 2) {
-      throw new Error('Needs two flats with no active resident. Vacate two before running this.');
+      throw new Error('Needs two homes with no active resident. Vacate two before running this.');
     }
 
-    const [flatA, flatB] = freeUnits;
+    const [homeA, homeB] = freeUnits;
 
     for (const unit of freeUnits) {
       restoreUnits.push({ id: unit.id, was: unit.is_occupied });
       await db.execute('UPDATE units SET is_occupied = true WHERE id = ?', [unit.id]);
     }
 
-    // Alice and Carol share flat A, which is what makes one vote per flat
+    // Alice and Carol share home A, which is what makes one vote per home
     // something the suite can actually prove.
-    await db.execute('INSERT INTO residents (user_id, unit_id, move_in_date, is_active) VALUES (?, ?, CURDATE(), 1)', [alice.id, flatA.id]);
-    await db.execute('INSERT INTO residents (user_id, unit_id, move_in_date, is_active) VALUES (?, ?, CURDATE(), 1)', [carol.id, flatA.id]);
-    await db.execute('INSERT INTO residents (user_id, unit_id, move_in_date, is_active) VALUES (?, ?, CURDATE(), 1)', [bob.id, flatB.id]);
+    await db.execute('INSERT INTO residents (user_id, unit_id, move_in_date, is_active) VALUES (?, ?, CURDATE(), 1)', [alice.id, homeA.id]);
+    await db.execute('INSERT INTO residents (user_id, unit_id, move_in_date, is_active) VALUES (?, ?, CURDATE(), 1)', [carol.id, homeA.id]);
+    await db.execute('INSERT INTO residents (user_id, unit_id, move_in_date, is_active) VALUES (?, ?, CURDATE(), 1)', [bob.id, homeB.id]);
 
     const adminToken = await login(admin.email);
     const guardToken = await login(guard.email);
@@ -147,11 +147,11 @@ async function run() {
       method: 'POST',
       body: JSON.stringify({ amenity_id: amenityId, booking_date: dayFromNow(3), starts_at: slot })
     });
-    check('a second flat cannot take the same slot', res.status === 409, String(res.status));
+    check('a second home cannot take the same slot', res.status === 409, String(res.status));
 
     res = await call(bobToken, `/amenities/${amenityId}/availability?date=${dayFromNow(3)}`);
     const takenSlot = res.body.data.slots.find((entry) => entry.starts_at === slot);
-    check('the slot shows as taken by a flat, not a person', takenSlot.taken_by === `Flat ${flatA.number}`, takenSlot.taken_by);
+    check('the slot shows as taken by a home, not a person', takenSlot.taken_by === `Home ${homeA.number}`, takenSlot.taken_by);
 
     res = await call(aliceToken, '/amenities/bookings', {
       method: 'POST',
@@ -160,17 +160,17 @@ async function run() {
     check('a day in the past is refused', res.status === 400, String(res.status));
 
     res = await call(bobToken, `/amenities/bookings/${bookingId}`, { method: 'DELETE' });
-    check('another flat cannot cancel your booking', res.status === 404, String(res.status));
+    check('another home cannot cancel your booking', res.status === 404, String(res.status));
 
     res = await call(aliceToken, `/amenities/bookings/${bookingId}`, { method: 'DELETE' });
-    check('the flat that booked it can cancel', res.status === 200, JSON.stringify(res.body));
+    check('the home that booked it can cancel', res.status === 200, JSON.stringify(res.body));
 
     res = await call(bobToken, '/amenities/bookings', {
       method: 'POST',
       body: JSON.stringify({ amenity_id: amenityId, booking_date: dayFromNow(3), starts_at: slot })
     });
     check('cancelling frees the slot for somebody else', res.status === 200, JSON.stringify(res.body));
-    // 2. The household, and a plate that can only belong to one flat.
+    // 2. The household, and a plate that can only belong to one home.
     res = await call(aliceToken, '/household/members', {
       method: 'POST',
       body: JSON.stringify({ name: `Ravi ${tag}`, relation: 'Father', phone: '9000000001' })
@@ -188,18 +188,18 @@ async function run() {
       method: 'POST',
       body: JSON.stringify({ vehicle_type: 'CAR', number_plate: `KA01${tag.slice(-6)}` })
     });
-    check('the same plate cannot belong to two flats', res.status === 409, String(res.status));
+    check('the same plate cannot belong to two homes', res.status === 409, String(res.status));
 
     res = await call(aliceToken, '/household');
     check('the plate is stored in one spelling', (res.body.data.vehicles || [])[0]?.number_plate === `KA01${tag.slice(-6)}`.toUpperCase(), JSON.stringify(res.body.data.vehicles));
     check('the household lists its members', (res.body.data.members || []).some((m) => m.name === `Ravi ${tag}`));
 
     res = await call(bobToken, `/household/members/${memberId}`, { method: 'DELETE' });
-    check('another flat cannot remove your household member', res.status === 404, String(res.status));
+    check('another home cannot remove your household member', res.status === 404, String(res.status));
 
     // 3. The directory, off until somebody switches it on.
     res = await call(bobToken, '/household/directory');
-    check('the directory starts with nobody in it', !(res.body.data || []).some((row) => row.unit_number === flatA.number), JSON.stringify(res.body.data));
+    check('the directory starts with nobody in it', !(res.body.data || []).some((row) => row.unit_number === homeA.number), JSON.stringify(res.body.data));
 
     res = await call(aliceToken, '/household/directory', {
       method: 'PUT',
@@ -208,7 +208,7 @@ async function run() {
     check('a resident can list themselves', res.status === 200, JSON.stringify(res.body));
 
     res = await call(bobToken, '/household/directory');
-    check('a neighbour can now find them', (res.body.data || []).some((row) => row.unit_number === flatA.number));
+    check('a neighbour can now find them', (res.body.data || []).some((row) => row.unit_number === homeA.number));
 
     res = await call(adminToken, '/household/directory');
     check('the directory is for residents, not the office', res.status === 403, String(res.status));
@@ -246,7 +246,7 @@ async function run() {
     const seen = (res.body.data || []).find((poll) => poll.id === pollId);
     check('a resident sees the open poll', Boolean(seen), JSON.stringify((res.body.data || []).length));
     check('results stay closed while voting is open', seen.results === null, JSON.stringify(seen.results));
-    check('the poll says how many flats could vote', seen.eligible_flats > 0, String(seen.eligible_flats));
+    check('the poll says how many homes could vote', seen.eligible_homes > 0, String(seen.eligible_homes));
 
     const yes = seen.options.find((option) => option.label === 'Yes');
     const no = seen.options.find((option) => option.label === 'No');
@@ -261,23 +261,23 @@ async function run() {
       method: 'POST',
       body: JSON.stringify({ option_id: no.id })
     });
-    check('a second person in the same flat cannot vote again', res.status === 409, JSON.stringify(res.body));
+    check('a second person in the same home cannot vote again', res.status === 409, JSON.stringify(res.body));
 
     res = await call(bobToken, `/polls/${pollId}/vote`, {
       method: 'POST',
       body: JSON.stringify({ option_id: no.id })
     });
-    check('a different flat can vote', res.status === 200, JSON.stringify(res.body));
+    check('a different home can vote', res.status === 200, JSON.stringify(res.body));
 
     res = await call(adminToken, `/polls/${pollId}/turnout`);
-    const votedFlats = (res.body.data || []).filter((row) => row.has_voted);
-    check('turnout says which flats have voted', votedFlats.length >= 2, String(votedFlats.length));
+    const votedHomes = (res.body.data || []).filter((row) => row.has_voted);
+    check('turnout says which homes have voted', votedHomes.length >= 2, String(votedHomes.length));
     check('turnout never says which way', !JSON.stringify(res.body.data).includes('option'), JSON.stringify(res.body.data?.[0]));
 
     res = await call(adminToken, '/polls');
     const adminView = (res.body.data || []).find((poll) => poll.id === pollId);
     check('an admin can see the tally to run the meeting', Array.isArray(adminView.results), JSON.stringify(adminView.results));
-    check('the tally counts one vote per flat', adminView.votes_cast === 2, String(adminView.votes_cast));
+    check('the tally counts one vote per home', adminView.votes_cast === 2, String(adminView.votes_cast));
 
     res = await call(adminToken, `/polls/${pollId}`, { method: 'PUT', body: JSON.stringify({ close_now: true }) });
     check('a poll can be closed early', res.status === 200, JSON.stringify(res.body));
@@ -316,7 +316,7 @@ async function run() {
     check('the office can reply', res.status === 200, JSON.stringify(res.body));
 
     res = await call(bobToken, `/tickets/${ticketId}/comments`);
-    check('another flat cannot read a private issue', res.status === 404, String(res.status));
+    check('another home cannot read a private issue', res.status === 404, String(res.status));
 
     res = await call(aliceToken, `/tickets/${ticketId}/comments`);
     check('the conversation reads back in order', (res.body.data || []).length === 2, String(res.body.data?.length));
@@ -360,19 +360,19 @@ async function run() {
     // 6. Parcels held at the desk.
     res = await call(guardToken, '/parcels', {
       method: 'POST',
-      body: JSON.stringify({ unit_id: flatA.id, courier: `Bluedart ${tag}`, description: 'Small box' })
+      body: JSON.stringify({ unit_id: homeA.id, courier: `Bluedart ${tag}`, description: 'Small box' })
     });
     check('the guard can hold a parcel', res.status === 200, JSON.stringify(res.body));
     const parcelId = res.body.data?.id;
 
     res = await call(aliceToken, '/parcels');
-    check('the flat it is for sees it waiting', (res.body.data || []).some((row) => row.id === parcelId));
+    check('the home it is for sees it waiting', (res.body.data || []).some((row) => row.id === parcelId));
 
     res = await call(bobToken, '/parcels');
-    check('another flat does not see it', !(res.body.data || []).some((row) => row.id === parcelId));
+    check('another home does not see it', !(res.body.data || []).some((row) => row.id === parcelId));
 
     res = await call(aliceToken, '/notifications');
-    check('only that flat is told', (res.body.data || []).some((row) => row.title.includes('parcel')), JSON.stringify((res.body.data || []).map((r) => r.title)));
+    check('only that home is told', (res.body.data || []).some((row) => row.title.includes('parcel')), JSON.stringify((res.body.data || []).map((r) => r.title)));
 
     res = await call(bobToken, '/notifications');
     check('the building is not told', !(res.body.data || []).some((row) => row.title.includes('parcel')));
@@ -435,14 +435,14 @@ async function run() {
     res = await call(guardToken, '/notifications');
     const alarm = (res.body.data || []).find((row) => row.title.startsWith('EMERGENCY'));
     check('the gate is woken', Boolean(alarm), JSON.stringify((res.body.data || []).map((r) => r.title)));
-    check('the alert carries the flat and the floor', alarm && alarm.message.includes(`flat ${flatA.number}`), alarm && alarm.message);
+    check('the alert carries the home and the floor', alarm && alarm.message.includes(`home ${homeA.number}`), alarm && alarm.message);
 
     res = await call(adminToken, '/notifications');
     check('the admins are woken too', (res.body.data || []).some((row) => row.title.startsWith('EMERGENCY')));
 
     const [alertAudit] = await db.execute(
       "SELECT * FROM audit_log WHERE action = 'RAISE_EMERGENCY' AND entity_id = ?",
-      [String(flatA.id)]
+      [String(homeA.id)]
     );
     check('the alarm is on the record', alertAudit.length >= 1, String(alertAudit.length));
 

@@ -5,7 +5,7 @@ import { KeyRound, Search, UserCheck, X, AlertCircle } from 'lucide-react';
 /**
  * Gate-desk lookup for a pre-approved visitor. The guard types the six
  * characters the resident gave their guest, sees who it belongs to, and admits
- * them without ringing the flat.
+ * them without ringing the home.
  */
 export default function PassLookup({ onAdmitted }) {
   const [code, setCode] = useState('');
@@ -99,7 +99,7 @@ export default function PassLookup({ onAdmitted }) {
             <div>
               <div className="text-lg font-black text-white">{pass.visitor_name}</div>
               <div className="text-sm text-emerald-300 font-semibold mt-0.5">
-                Visiting Flat {pass.unit_number}, floor {pass.unit_floor}
+                Visiting Home {pass.unit_number}, floor {pass.unit_floor}
               </div>
               <div className="text-xs text-slate-400 mt-1">
                 Approved by {pass.pre_approved_by || 'the resident'}

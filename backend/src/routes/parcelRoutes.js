@@ -12,7 +12,7 @@ router.post(
   '/',
   requireRole('SECURITY'),
   validate({
-    unit_id: { required: true, type: 'integer', label: 'Flat' },
+    unit_id: { required: true, type: 'integer', label: 'Home' },
     courier: { type: 'string', maxLength: 60, label: 'Courier' },
     description: { type: 'string', maxLength: 255, label: 'Description' }
   }),

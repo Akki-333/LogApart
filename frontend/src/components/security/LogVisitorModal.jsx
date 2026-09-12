@@ -93,11 +93,11 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
             </div>
           </div>
 
-          {/* Visiting Flat & Purpose */}
+          {/* Visiting Home & Purpose */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
-                <Home className="w-3.5 h-3.5 text-slate-400" /> Visiting Flat *
+                <Home className="w-3.5 h-3.5 text-slate-400" /> Visiting Home *
               </label>
               <select
                 required
@@ -105,10 +105,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
                 onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
                 className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm font-semibold text-slate-800 bg-white"
               >
-                <option value="">Select Flat</option>
+                <option value="">Select Home</option>
                 {units?.map(unit => (
                   <option key={unit.unit_id} value={unit.unit_id}>
-                    Flat {unit.number} (Floor {unit.floor})
+                    Home {unit.number} (Floor {unit.floor})
                   </option>
                 ))}
               </select>

@@ -111,7 +111,7 @@ export default function DashboardHome() {
       {/* 1. Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Apartment Overview</h1>
+          <h1 className="text-2xl font-black text-slate-900">Building Overview</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Hello, <strong className="text-slate-700">{user?.name || 'Admin'}</strong>. Here is what is happening across the building today.
           </p>
@@ -144,7 +144,7 @@ export default function DashboardHome() {
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Occupancy</span>
               <div className="text-2xl font-black text-slate-900 mt-1">
-                {stats?.occupancy.occupied_units || 0} of {stats?.occupancy.total_units || 20} Flats
+                {stats?.occupancy.occupied_units || 0} of {stats?.occupancy.total_units || 20} Homes
               </div>
             </div>
             <div className="p-2.5 bg-teal-50 text-teal-700 rounded-xl">
@@ -265,7 +265,7 @@ export default function DashboardHome() {
 
                   <div className="text-right">
                     <span className="inline-block text-xs font-bold px-2 py-0.5 bg-teal-50 text-teal-800 rounded-md border border-teal-200 mb-0.5">
-                      Flat {v.unit_number}
+                      Home {v.unit_number}
                     </span>
                     <div className="text-[11px] text-slate-400 flex items-center justify-end gap-1">
                       <Clock className="w-3 h-3" />
@@ -316,7 +316,7 @@ export default function DashboardHome() {
                         ? 'text-indigo-800 bg-indigo-50 border-indigo-200'
                         : 'text-teal-800 bg-teal-50 border-teal-200'
                     }`}>
-                      {ticket.scope === 'COMMON' ? (ticket.location || 'Common area') : `Flat ${ticket.unit_number}`}
+                      {ticket.scope === 'COMMON' ? (ticket.location || 'Common area') : `Home ${ticket.unit_number}`}
                     </span>
                     {getPriorityBadge(ticket.priority)}
                   </div>

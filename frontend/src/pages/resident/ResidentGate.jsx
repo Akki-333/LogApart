@@ -93,7 +93,7 @@ export default function ResidentGate() {
         <div>
           <h1 className="text-2xl font-black text-slate-900">My Gate</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Who has visited your flat, and guests you have pre-approved
+            Who has visited your home, and guests you have pre-approved
           </p>
         </div>
         <button
@@ -199,7 +199,7 @@ export default function ResidentGate() {
       ) : visitors.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
           <ShieldCheck className="w-8 h-8 mx-auto mb-3 text-slate-300" />
-          <p className="text-sm font-semibold text-slate-500">Nothing logged at the gate for your flat yet.</p>
+          <p className="text-sm font-semibold text-slate-500">Nothing logged at the gate for your home yet.</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100">

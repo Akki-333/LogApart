@@ -1,7 +1,7 @@
 /**
  * Live-API checks for the two defects fixed in migration 005.
  *
- *   1. A ticket can belong to the common area instead of a flat.
+ *   1. A ticket can belong to the common area instead of a home.
  *   2. Notification read state belongs to a person, not to the notification.
  *
  * The project has no test framework, so this exercises the running API on
@@ -104,7 +104,7 @@ async function run() {
         priority: 'HIGH'
       })
     });
-    check('admin can raise a common-area ticket with no flat', res.status === 200 && res.body.success, JSON.stringify(res.body));
+    check('admin can raise a common-area ticket with no home', res.status === 200 && res.body.success, JSON.stringify(res.body));
 
     res = await call(tokenA, '/tickets', {
       method: 'POST',
@@ -114,28 +114,28 @@ async function run() {
 
     res = await call(tokenA, '/tickets', {
       method: 'POST',
-      body: JSON.stringify({ scope: 'UNIT', title: `No flat ${tag}`, description: 'x' })
+      body: JSON.stringify({ scope: 'UNIT', title: `No home ${tag}`, description: 'x' })
     });
-    check('unit ticket without a flat is rejected', res.status === 400);
+    check('unit ticket without a home is rejected', res.status === 400);
 
     res = await call(tokenA, '/tickets', {
       method: 'POST',
-      body: JSON.stringify({ unit_id: unit.id, title: `Flat leak ${tag}`, description: 'Tap leaking' })
+      body: JSON.stringify({ unit_id: unit.id, title: `Home leak ${tag}`, description: 'Tap leaking' })
     });
-    check('admin can still raise a flat ticket', res.status === 200 && res.body.success, JSON.stringify(res.body));
+    check('admin can still raise a home ticket', res.status === 200 && res.body.success, JSON.stringify(res.body));
 
     res = await call(tokenA, '/tickets');
     const tickets = res.body.data || [];
     const common = tickets.find((ticket) => ticket.location === location);
     check('common ticket appears in the admin list', Boolean(common));
     check('common ticket is labelled by its location', common && common.place === location, common && common.place);
-    check('common ticket carries no flat', common && common.unit_id === null);
+    check('common ticket carries no home', common && common.unit_id === null);
 
-    const flatTicket = tickets.find((ticket) => ticket.title === `Flat leak ${tag}`);
+    const homeTicket = tickets.find((ticket) => ticket.title === `Home leak ${tag}`);
     check(
-      'flat ticket is labelled by its flat number',
-      flatTicket && flatTicket.place === `Flat ${unit.number}`,
-      flatTicket && flatTicket.place
+      'home ticket is labelled by its home number',
+      homeTicket && homeTicket.place === `Home ${unit.number}`,
+      homeTicket && homeTicket.place
     );
 
     res = await call(tokenA, '/tickets?scope=COMMON');
@@ -151,7 +151,7 @@ async function run() {
     res = await call(tokenResident, '/resident/tickets');
     const residentTickets = res.body.data || [];
     check('resident sees the common fault', residentTickets.some((t) => t.location === location && t.is_mine === false));
-    check("resident sees their own flat's ticket", residentTickets.some((t) => t.title === `Flat leak ${tag}` && t.is_mine === true));
+    check("resident sees their own home's ticket", residentTickets.some((t) => t.title === `Home leak ${tag}` && t.is_mine === true));
 
     res = await call(tokenResident, '/resident/tickets', {
       method: 'POST',

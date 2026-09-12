@@ -91,8 +91,8 @@ async function run() {
     const throwaway = await makeUser('ADMIN', 'lock');
     const rotating = await makeUser('ADMIN', 'rot');
 
-    // A flat nobody currently lives in, so the run never disturbs a real
-    // tenancy. Falls back to the first flat if the building is full.
+    // A home nobody currently lives in, so the run never disturbs a real
+    // tenancy. Falls back to the first home if the building is full.
     const [freeUnits] = await db.query(
       `SELECT u.id, u.number, u.is_occupied
        FROM units u
@@ -218,7 +218,7 @@ async function run() {
 
     res = await call(guardToken, `/security/visitors/${logged.id}`, {
       method: 'DELETE',
-      body: JSON.stringify({ reason: `Logged against the wrong flat ${tag}` })
+      body: JSON.stringify({ reason: `Logged against the wrong home ${tag}` })
     });
     check('removing it with a reason succeeds', res.status === 200, JSON.stringify(res.body));
 
@@ -310,7 +310,7 @@ async function run() {
       method: 'POST',
       body: JSON.stringify({ unit_id: unit.id, waive_dues: true, waiver_reason: `Verification run ${tag}` })
     });
-    check('the flat can be vacated', res.status === 200 && Boolean(res.body.data?.certificate_number), JSON.stringify(res.body));
+    check('the home can be vacated', res.status === 200 && Boolean(res.body.data?.certificate_number), JSON.stringify(res.body));
     certificateNumber = res.body.data?.certificate_number || null;
 
     res = await call(residentToken, '/resident/summary');

@@ -62,7 +62,7 @@ export default function ResidentEmergency() {
           <h2 className="text-sm font-black text-rose-900">Alert the gate</h2>
         </div>
         <p className="text-xs text-rose-900/80 leading-relaxed mb-3">
-          This wakes the guard on duty and every building admin with your flat, your floor
+          This wakes the guard on duty and every building admin with your home, your floor
           and your phone number. It does not call the police, an ambulance or the fire
           service. Use the numbers below for that.
         </p>
@@ -121,7 +121,7 @@ export default function ResidentEmergency() {
         </div>
 
         {parcels.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-slate-400">Nothing is being held for your flat.</p>
+          <p className="px-5 py-8 text-center text-sm text-slate-400">Nothing is being held for your home.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {parcels.map((parcel) => (

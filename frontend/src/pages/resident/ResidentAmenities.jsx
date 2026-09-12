@@ -163,7 +163,7 @@ export default function ResidentAmenities() {
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-800">Your flat's bookings</h3>
+          <h3 className="text-sm font-bold text-slate-800">Your home's bookings</h3>
         </div>
 
         {live.length === 0 ? (
