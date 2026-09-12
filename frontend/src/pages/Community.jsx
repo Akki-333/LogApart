@@ -3,13 +3,15 @@ import HelpersTab from '../components/community/HelpersTab';
 import NoticesTab from '../components/community/NoticesTab';
 import ParkingTab from '../components/community/ParkingTab';
 import StaffTab from '../components/community/StaffTab';
-import { Users, Megaphone, Car, HardHat, CheckCircle2 } from 'lucide-react';
+import AmenitiesTab from '../components/community/AmenitiesTab';
+import { Users, Megaphone, Car, HardHat, CalendarDays, CheckCircle2 } from 'lucide-react';
 
 const TABS = [
   { key: 'HELPERS', label: 'Daily Helpers', icon: Users, blurb: 'Maids, cooks and drivers who come every day' },
   { key: 'NOTICES', label: 'Notices', icon: Megaphone, blurb: 'Announcements for residents and staff' },
   { key: 'PARKING', label: 'Parking', icon: Car, blurb: 'Bay allotment and violations' },
-  { key: 'STAFF', label: 'Staff', icon: HardHat, blurb: 'Roster, attendance and monthly pay' }
+  { key: 'STAFF', label: 'Staff', icon: HardHat, blurb: 'Roster, attendance and monthly pay' },
+  { key: 'AMENITIES', label: 'Bookings', icon: CalendarDays, blurb: 'What residents can book, and the requests waiting on a yes' }
 ];
 
 /**
@@ -60,6 +62,7 @@ export default function Community() {
       {tab === 'NOTICES' && <NoticesTab onAction={announce} />}
       {tab === 'PARKING' && <ParkingTab onAction={announce} />}
       {tab === 'STAFF' && <StaffTab onAction={announce} />}
+      {tab === 'AMENITIES' && <AmenitiesTab onAction={announce} />}
     </div>
   );
 }

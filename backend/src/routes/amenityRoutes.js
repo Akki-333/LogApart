@@ -5,7 +5,7 @@ const { requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 
 // Anyone signed in can see what the building has and when it is free. Booking
-// is a resident's act, and the handler resolves their flat itself.
+// is a resident's act, and the handler resolves their home itself.
 router.get('/', amenityController.getAmenities);
 router.get('/:id/availability', amenityController.getAvailability);
 
@@ -34,5 +34,6 @@ router.post(
   amenityController.createAmenity
 );
 router.put('/:id', requireRole('ADMIN'), amenityController.updateAmenity);
+router.post('/bookings/:id/review', requireRole('ADMIN'), amenityController.reviewBooking);
 
 module.exports = router;

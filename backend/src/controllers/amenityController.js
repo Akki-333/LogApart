@@ -76,9 +76,9 @@ exports.getAvailability = async (req, res) => {
           const holder = taken.get(slot.starts_at);
           return {
             ...slot,
-            // The flat is shown rather than the person, which is what a
+            // The home is shown rather than the person, which is what a
             // neighbour needs to know and all they need to know.
-            taken_by: holder ? `Flat ${holder.unit_number}` : null,
+            taken_by: holder ? `Home ${holder.unit_number}` : null,
             status: holder ? holder.status : 'FREE'
           };
         })
@@ -157,7 +157,7 @@ exports.updateAmenity = async (req, res) => {
   }
 };
 
-// Every resident endpoint resolves the caller's own flat first, exactly as the
+// Every resident endpoint resolves the caller's own home first, exactly as the
 // rest of the resident API does. A unit id from the client is never trusted.
 const activeUnitFor = async (userId) => {
   const [rows] = await db.execute(
@@ -178,7 +178,7 @@ exports.book = async (req, res) => {
     const unit = await activeUnitFor(req.user.id);
 
     if (!unit) {
-      return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a flat.' });
+      return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a home.' });
     }
 
     const [amenities] = await db.execute('SELECT * FROM amenities WHERE id = ? AND is_active = 1', [amenityId]);
@@ -208,7 +208,7 @@ exports.book = async (req, res) => {
     );
 
     createNotification({
-      title: `${amenity.name} booked by flat ${unit.number}`,
+      title: `${amenity.name} booked by home ${unit.number}`,
       message: `${date} from ${slot.starts_at.slice(0, 5)} to ${slot.ends_at.slice(0, 5)}.`,
       target_role: 'ADMIN',
       type: 'COMMUNITY'
@@ -233,7 +233,7 @@ exports.book = async (req, res) => {
   }
 };
 
-/** 5. Bookings, scoped to the caller's flat unless they administer the building. */
+/** 5. Bookings, scoped to the caller's home unless they administer the building. */
 exports.getBookings = async (req, res) => {
   const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user.role);
 
@@ -274,7 +274,7 @@ exports.getBookings = async (req, res) => {
   }
 };
 
-/** 6. Cancel. A resident may drop their own flat's booking, an admin any. */
+/** 6. Cancel. A resident may drop their own home's booking, an admin any. */
 exports.cancelBooking = async (req, res) => {
   const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(req.user.role);
 
@@ -314,5 +314,73 @@ exports.cancelBooking = async (req, res) => {
   } catch (error) {
     console.error('Error cancelling booking:', error);
     res.status(500).json({ success: false, message: 'Server error cancelling that booking' });
+  }
+};
+
+/**
+ * 7. Confirm or refuse a booking on an amenity that needs approval.
+ *
+ * Refusing frees the slot, because a refused request that keeps holding the
+ * terrace is worse for the building than no booking system at all.
+ */
+exports.reviewBooking = async (req, res) => {
+  const approve = req.body.approve === true || req.body.approve === 'true';
+  const note = String(req.body.note || '').trim();
+
+  if (!approve && note.length < 4) {
+    return res.status(400).json({ success: false, message: 'Say why the booking is being refused.' });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT b.*, a.name AS amenity_name, u.number AS unit_number
+       FROM amenity_bookings b
+       JOIN amenities a ON b.amenity_id = a.id
+       JOIN units u ON b.unit_id = u.id
+       WHERE b.id = ?`,
+      [req.params.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'No such booking.' });
+    }
+
+    const booking = rows[0];
+
+    if (booking.status !== 'PENDING') {
+      return res.status(409).json({
+        success: false,
+        message: `That booking is already ${booking.status.toLowerCase()}.`
+      });
+    }
+
+    await db.execute(
+      'UPDATE amenity_bookings SET status = ?, reviewed_by_id = ?, review_note = ? WHERE id = ?',
+      [approve ? 'CONFIRMED' : 'REJECTED', req.user.id, note || null, req.params.id]
+    );
+
+    await recordAudit(req, {
+      action: approve ? 'CONFIRM_BOOKING' : 'REFUSE_BOOKING',
+      entity: 'amenity_bookings',
+      entity_id: req.params.id,
+      summary: `${approve ? 'Confirmed' : 'Refused'} ${booking.amenity_name} for home ${booking.unit_number} on ${booking.booking_date}`,
+      before: { status: 'PENDING' },
+      after: { status: approve ? 'CONFIRMED' : 'REJECTED', note: note || null }
+    });
+
+    await createNotification({
+      title: approve ? `${booking.amenity_name} confirmed` : `${booking.amenity_name} not available`,
+      message: approve
+        ? `${booking.booking_date}, ${String(booking.starts_at).slice(0, 5)} to ${String(booking.ends_at).slice(0, 5)}.`
+        : `Your request for ${booking.booking_date} was refused: ${note}`,
+      target_role: 'RESIDENT',
+      target_user_id: booking.booked_by_id,
+      type: 'COMMUNITY'
+    });
+
+    res.json({ success: true, message: approve ? 'Booking confirmed.' : 'Booking refused and the slot freed.' });
+  } catch (error) {
+    console.error('Error reviewing booking:', error);
+    res.status(500).json({ success: false, message: 'Server error reviewing that booking' });
   }
 };

@@ -17,13 +17,15 @@ import {
   Users, 
   UserCheck, 
   Filter, 
-  RefreshCw 
+  RefreshCw,
+  Home,
+  Wallet
 } from 'lucide-react';
 
 export default function Residents() {
   const { token } = useContext(AuthContext);
   const [unitsData, setUnitsData] = useState(null);
-  const [flatList, setFlatList] = useState([]);
+  const [homeList, setHomeList] = useState([]);
   const [loading, setLoading] = useState(true);
   
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
@@ -52,7 +54,7 @@ export default function Residents() {
       setLoading(true);
       const response = await api.get('/api/units');
       setUnitsData(response.data.data);
-      setFlatList(response.data.flatList || []);
+      setHomeList(response.data.homeList || []);
     } catch (error) {
       console.error('Failed to fetch units', error);
     } finally {
@@ -120,7 +122,7 @@ export default function Residents() {
   // admin issues a new one-time password and the reason goes into the log.
   const handleReissuePassword = async (unit) => {
     const reason = window.prompt(
-      `Why is a new password being issued for flat ${unit.number}? This ends every session on that account.`
+      `Why is a new password being issued for home ${unit.number}? This ends every session on that account.`
     );
     if (reason === null) return;
 
@@ -180,16 +182,16 @@ export default function Residents() {
   };
 
   // Calculated Stats
-  const totalUnits = flatList.length;
-  const occupiedUnits = flatList.filter(u => u.is_occupied).length;
+  const totalUnits = homeList.length;
+  const occupiedUnits = homeList.filter(u => u.is_occupied).length;
   const vacantUnits = totalUnits - occupiedUnits;
   const occupancyRate = totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
-  const ownerCount = flatList.filter(u => u.is_occupied && u.type === 'OWNER').length;
-  const tenantCount = flatList.filter(u => u.is_occupied && u.type === 'TENANT').length;
-  const vacantUnitsList = flatList.filter(u => !u.is_occupied);
+  const ownerCount = homeList.filter(u => u.is_occupied && u.type === 'OWNER').length;
+  const tenantCount = homeList.filter(u => u.is_occupied && u.type === 'TENANT').length;
+  const vacantUnitsList = homeList.filter(u => !u.is_occupied);
 
-  // Filtered Flat List for Table
-  const filteredFlatList = flatList.filter(u => {
+  // Filtered Home List for Table
+  const filteredHomeList = homeList.filter(u => {
     if (filterStatus === 'OCCUPIED' && !u.is_occupied) return false;
     if (filterStatus === 'VACANT' && u.is_occupied) return false;
     if (filterStatus === 'OWNER' && u.type !== 'OWNER') return false;
@@ -241,7 +243,7 @@ export default function Residents() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Units</span>
-          <div className="text-xl font-black text-slate-900 mt-1">{totalUnits || 20} Flats</div>
+          <div className="text-xl font-black text-slate-900 mt-1">{totalUnits || 20} Homes</div>
           <span className="text-[11px] text-slate-500">4 Residential Floors</span>
         </div>
 
@@ -274,7 +276,7 @@ export default function Residents() {
           </div>
           <input
             type="text"
-            placeholder="Search by Flat # (e.g. A, B-1, C-2), Resident Name, or Mobile..."
+            placeholder="Search by Home # (e.g. A, B-1, C-2), Resident Name, or Mobile..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all font-medium text-slate-800"
@@ -366,7 +368,7 @@ export default function Residents() {
         />
       ) : (
         <ResidentsTable
-          units={filteredFlatList}
+          units={filteredHomeList}
           onUnitClick={handleUnitClick}
           onEditClick={handleOpenEdit}
           onVacateClick={handleOpenVacate}
