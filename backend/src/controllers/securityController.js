@@ -2,33 +2,85 @@ const db = require('../config/db');
 const { createNotification } = require('./notificationController');
 const { recordAudit } = require('../services/audit');
 
-// 1. Get all visitor logs
+const GATE_MAX_PAGE = 200;
+const GATE_DEFAULT_PAGE = 50;
+
+// Who is inside right now, and passes still to be used. The desk works from
+// this list, so it always arrives whole; it is small by nature.
+const LIVE = "(v.status = 'ENTERED' OR (v.status = 'APPROVED' AND v.expected_on >= CURDATE()))";
+
+// A row with neither time sorts last instead of falling out of a comparison.
+const seenAt = (alias) => `COALESCE(${alias}.entry_time, ${alias}.expected_on, TIMESTAMP('1970-01-01'))`;
+
+const GATE_COLUMNS = `
+  SELECT
+    v.id, v.visitor_name, v.visitor_phone, v.vehicle_number, v.vehicle_type,
+    v.purpose, v.company, v.status, v.entry_time, v.exit_time, v.unit_id,
+    v.pass_code, v.expected_on,
+    u.number as unit_number, u.floor as unit_floor,
+    usr.name as logged_by,
+    resident.name as pre_approved_by
+  FROM visitor_logs v
+  JOIN units u ON v.unit_id = u.id
+  LEFT JOIN users usr ON v.logged_by_id = usr.id
+  LEFT JOIN users resident ON v.created_by_id = resident.id`;
+
+/**
+ * The gate log: the live list in full, then history a page at a time.
+ *
+ * History pages on the record's time and id rather than OFFSET, for the reason
+ * the activity log does: rows arrive at the head while a guard reads, and an
+ * offset would shift under them and skip a visitor.
+ */
 exports.getVisitorLogs = async (req, res) => {
+  const limit = Math.min(GATE_MAX_PAGE, Math.max(1, Number(req.query.limit) || GATE_DEFAULT_PAGE));
+  const beforeId = Number(req.query.before_id) || null;
+
   try {
-    const query = `
-      SELECT
-        v.id, v.visitor_name, v.visitor_phone, v.vehicle_number, v.vehicle_type,
-        v.purpose, v.company, v.status, v.entry_time, v.exit_time, v.unit_id,
-        v.pass_code, v.expected_on,
-        u.number as unit_number, u.floor as unit_floor,
-        usr.name as logged_by,
-        resident.name as pre_approved_by
-      FROM visitor_logs v
-      JOIN units u ON v.unit_id = u.id
-      LEFT JOIN users usr ON v.logged_by_id = usr.id
-      LEFT JOIN users resident ON v.created_by_id = resident.id
-      WHERE v.status <> 'DENIED' AND v.deleted_at IS NULL
-      ORDER BY
-        CASE
-          WHEN v.status = 'ENTERED' THEN 1
-          WHEN v.status = 'APPROVED' AND v.expected_on >= CURDATE() THEN 2
-          ELSE 3
-        END,
-        COALESCE(v.entry_time, v.expected_on) DESC, v.id DESC
-    `;
-    
-    const [rows] = await db.execute(query);
-    res.json({ success: true, data: rows });
+    let live = [];
+    const history = ["v.status <> 'DENIED'", 'v.deleted_at IS NULL', `NOT ${LIVE}`];
+    const params = [];
+
+    if (beforeId) {
+      history.push(`(${seenAt('v')}, v.id) < (SELECT ${seenAt('x')}, x.id FROM visitor_logs x WHERE x.id = ?)`);
+      params.push(beforeId);
+    } else {
+      [live] = await db.execute(
+        `${GATE_COLUMNS}
+         WHERE v.deleted_at IS NULL AND ${LIVE}
+         ORDER BY CASE WHEN v.status = 'ENTERED' THEN 1 ELSE 2 END, ${seenAt('v')} DESC, v.id DESC`
+      );
+    }
+
+    // The limit is interpolated after being clamped to an integer.
+    const [older] = await db.execute(
+      `${GATE_COLUMNS}
+       WHERE ${history.join(' AND ')}
+       ORDER BY ${seenAt('v')} DESC, v.id DESC
+       LIMIT ${limit}`,
+      params
+    );
+
+    // Counted on the server, because a paged list can no longer count itself.
+    const [[counts]] = await db.execute(
+      `SELECT COALESCE(SUM(status = 'ENTERED'), 0) AS inside,
+              COALESCE(SUM(DATE(entry_time) = CURDATE()), 0) AS entries_today,
+              COALESCE(SUM(purpose = 'DELIVERY' AND DATE(entry_time) = CURDATE()), 0) AS deliveries_today
+       FROM visitor_logs
+       WHERE deleted_at IS NULL AND status <> 'DENIED'`
+    );
+
+    res.json({
+      success: true,
+      data: [...live, ...older],
+      // Null once the reader has reached the oldest record.
+      next_before_id: older.length === limit ? older[older.length - 1].id : null,
+      counts: {
+        inside: Number(counts.inside),
+        entries_today: Number(counts.entries_today),
+        deliveries_today: Number(counts.deliveries_today)
+      }
+    });
   } catch (error) {
     console.error('Error fetching visitors:', error);
     res.status(500).json({ success: false, message: 'Server error fetching visitor logs' });

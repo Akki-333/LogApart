@@ -27,6 +27,9 @@ export default function Security({ readOnly = false }) {
   const { toast, confirm, askReason } = useFeedback();
   const { token } = useContext(AuthContext);
   const [visitors, setVisitors] = useState([]);
+  const [nextBeforeId, setNextBeforeId] = useState(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [counts, setCounts] = useState({ inside: 0, entries_today: 0, deliveries_today: 0 });
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -50,10 +53,31 @@ export default function Security({ readOnly = false }) {
       setLoading(true);
       const response = await api.get('/api/security/visitors');
       setVisitors(response.data.data || []);
+      setNextBeforeId(response.data.next_before_id || null);
+      if (response.data.counts) setCounts(response.data.counts);
     } catch (error) {
       console.error('Failed to fetch visitors', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // History arrives a page at a time. Appending keeps what the guard is looking
+  // at in place; a row already on screen is never shown twice.
+  const loadOlder = async () => {
+    if (!nextBeforeId) return;
+    setLoadingOlder(true);
+    try {
+      const response = await api.get(`/api/security/visitors?before_id=${nextBeforeId}`);
+      setVisitors((current) => {
+        const seen = new Set(current.map((v) => v.id));
+        return [...current, ...(response.data.data || []).filter((v) => !seen.has(v.id))];
+      });
+      setNextBeforeId(response.data.next_before_id || null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not load older gate records.');
+    } finally {
+      setLoadingOlder(false);
     }
   };
 
@@ -133,7 +157,6 @@ export default function Security({ readOnly = false }) {
 
   // Counts
   const activeVisitors = visitors.filter(v => v.status === 'ENTERED');
-  const deliveryCount = visitors.filter(v => v.purpose === 'DELIVERY').length;
 
   // Filtered List
   const filteredVisitors = visitors.filter(v => {
@@ -255,7 +278,7 @@ export default function Security({ readOnly = false }) {
           </div>
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Entries Today</span>
-            <div className="text-2xl font-black text-slate-900 mt-0.5">{visitors.length} Logs</div>
+            <div className="text-2xl font-black text-slate-900 mt-0.5">{counts.entries_today} Logs</div>
           </div>
         </div>
 
@@ -264,8 +287,8 @@ export default function Security({ readOnly = false }) {
             <Package className="w-6 h-6" />
           </div>
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Deliveries Logged</span>
-            <div className="text-2xl font-black text-slate-900 mt-0.5">{deliveryCount} Packages</div>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Deliveries Today</span>
+            <div className="text-2xl font-black text-slate-900 mt-0.5">{counts.deliveries_today} Packages</div>
           </div>
         </div>
       </div>
@@ -467,6 +490,22 @@ export default function Security({ readOnly = false }) {
             </tbody>
           </table>
         </div>
+
+        {!loading && nextBeforeId && (
+          <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">
+              Search and filters cover the {visitors.length} records loaded so far.
+            </p>
+            <button
+              type="button"
+              onClick={loadOlder}
+              disabled={loadingOlder}
+              className="px-4 py-2 text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition-colors disabled:opacity-60"
+            >
+              {loadingOlder ? 'Loading…' : 'Load older records'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modals */}

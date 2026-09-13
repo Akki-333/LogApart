@@ -36,6 +36,8 @@ export default function Billing() {
   const [period, setPeriod] = useState(currentPeriod());
   const [overview, setOverview] = useState(null);
   const [invoices, setInvoices] = useState([]);
+  const [nextAfterId, setNextAfterId] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState('');
@@ -56,6 +58,7 @@ export default function Billing() {
       ]);
       setOverview(ov.data.data);
       setInvoices(inv.data.data);
+      setNextAfterId(inv.data.next_after_id || null);
       setRuns(rn.data.data);
     } catch (err) {
       console.error('Failed to load billing data', err);
@@ -88,6 +91,20 @@ export default function Billing() {
       announce('Billing run removed.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not delete that run.');
+    }
+  };
+
+  const loadMore = async () => {
+    if (!nextAfterId) return;
+    setLoadingMore(true);
+    try {
+      const res = await api.get(`/api/billing/invoices?period=${period}&after_id=${nextAfterId}`);
+      setInvoices((current) => [...current, ...res.data.data]);
+      setNextAfterId(res.data.next_after_id || null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not load more invoices.');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -390,6 +407,19 @@ export default function Billing() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!loading && nextAfterId && (
+          <div className="px-5 py-3 border-t border-slate-100 text-center">
+            <button
+              type="button"
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="px-4 py-2 text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl transition-colors disabled:opacity-60"
+            >
+              {loadingMore ? 'Loading…' : 'Load more invoices'}
+            </button>
           </div>
         )}
       </div>

@@ -362,8 +362,13 @@ exports.deleteRun = async (req, res) => {
   }
 };
 
+const INVOICE_MAX_PAGE = 500;
+const INVOICE_DEFAULT_PAGE = 100;
+
 exports.getInvoices = async (req, res) => {
   const { period, unit_id: unitId, status } = req.query;
+  const limit = Math.min(INVOICE_MAX_PAGE, Math.max(1, Number(req.query.limit) || INVOICE_DEFAULT_PAGE));
+  const afterId = Number(req.query.after_id) || null;
 
   const where = [];
   const params = [];
@@ -382,7 +387,41 @@ exports.getInvoices = async (req, res) => {
     params.push(unitId);
   }
 
+  // OVERDUE is derived rather than stored, so each status is translated into
+  // the test decorate applies. Filtering in SQL keeps a filtered page full; a
+  // filter applied after LIMIT would hand back a page with holes in it.
+  if (status && status !== 'ALL') {
+    if (status === 'PAID') {
+      where.push("i.status = 'PAID'");
+    } else if (status === 'OVERDUE') {
+      where.push("i.status <> 'PAID' AND i.due_date < CURDATE()");
+    } else {
+      where.push('i.status = ? AND i.due_date >= CURDATE()');
+      params.push(String(status));
+    }
+  }
+
   try {
+    if (afterId) {
+      const [[anchor]] = await db.execute(
+        'SELECT i.id, i.period_month, u.floor, u.number FROM invoices i JOIN units u ON i.unit_id = u.id WHERE i.id = ?',
+        [afterId]
+      );
+
+      if (!anchor) {
+        return res.status(400).json({ success: false, message: 'That page marker is not an invoice.' });
+      }
+
+      // The same order as the ORDER BY below, spelled out because it runs in
+      // mixed directions: newest month first, then floor and home ascending.
+      where.push(`(i.period_month < ? OR (i.period_month = ? AND (u.floor > ? OR (u.floor = ? AND
+        (u.number > ? OR (u.number = ? AND i.id > ?))))))`);
+      params.push(
+        anchor.period_month, anchor.period_month, anchor.floor, anchor.floor,
+        anchor.number, anchor.number, anchor.id
+      );
+    }
+
     const [rows] = await db.execute(
       `SELECT
          i.id, i.billing_run_id, i.unit_id, i.period_month, i.maintenance_amount,
@@ -394,18 +433,25 @@ exports.getInvoices = async (req, res) => {
        JOIN units u ON i.unit_id = u.id
        LEFT JOIN users usr ON i.resident_user_id = usr.id
        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-       ORDER BY i.period_month DESC, u.floor ASC, u.number ASC`,
+       ORDER BY i.period_month DESC, u.floor ASC, u.number ASC, i.id ASC
+       LIMIT ${limit}`,
       params
     );
 
     let data = rows.map(decorate);
 
-    // OVERDUE is derived rather than stored, so this filter runs after decoration.
+    // SQL and decorate can disagree for a few hours around midnight, since the
+    // database's day and the UTC day differ. The derived status is the one a
+    // reader sees, so it has the last word.
     if (status && status !== 'ALL') {
       data = data.filter((invoice) => invoice.display_status === status);
     }
 
-    res.json({ success: true, data });
+    res.json({
+      success: true,
+      data,
+      next_after_id: rows.length === limit ? rows[rows.length - 1].id : null
+    });
   } catch (error) {
     console.error('Error fetching invoices:', error);
     res.status(500).json({ success: false, message: 'Server error fetching invoices' });
