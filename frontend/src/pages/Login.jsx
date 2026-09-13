@@ -1,10 +1,11 @@
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { homePathFor } from '../lib/roles';
 import { Building2, Mail, Lock, ArrowRight } from 'lucide-react';
 
 export default function Login() {
+  const fieldId = useId();
   const { login, token, user, loading } = useContext(AuthContext);
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -70,7 +71,7 @@ export default function Login() {
             )}
             
             <div>
-              <label className="block text-sm font-medium text-slate-700">
+              <label className="block text-sm font-medium text-slate-700" htmlFor={`${fieldId}-email-address`}>
                 Email address
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
@@ -79,6 +80,7 @@ export default function Login() {
                 </div>
                 <input
                   type="email"
+                  id={`${fieldId}-email-address`}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -89,7 +91,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">
+              <label className="block text-sm font-medium text-slate-700" htmlFor={`${fieldId}-password`}>
                 Password
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
@@ -98,6 +100,7 @@ export default function Login() {
                 </div>
                 <input
                   type="password"
+                  id={`${fieldId}-password`}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

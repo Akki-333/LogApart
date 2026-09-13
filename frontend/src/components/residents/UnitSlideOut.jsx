@@ -1,4 +1,5 @@
 import { X, User, Calendar, Phone, Home, Shield, Edit3, LogOut, UserPlus, KeyRound } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 export default function UnitSlideOut({ 
   unit, 
@@ -9,6 +10,7 @@ export default function UnitSlideOut({
   onVacate,
   onReissuePassword
 }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
   if (!isOpen || !unit) return null;
 
   return (
@@ -20,7 +22,7 @@ export default function UnitSlideOut({
       />
       
       {/* Slide Panel */}
-      <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col border-l border-slate-200">
+      <div ref={dialogRef} {...dialogProps} className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-2xl z-50 transform transition-transform duration-300 flex flex-col border-l border-slate-200">
         
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -29,7 +31,7 @@ export default function UnitSlideOut({
               <Home className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900">Home {unit.number}</h2>
+              <h2 id={titleId} className="text-xl font-extrabold text-slate-900">Home {unit.number}</h2>
               <p className="text-xs font-semibold text-slate-500">
                 {unit.block_name ? `Block ${unit.block_name} • ` : ''}Floor {unit.floor}
               </p>

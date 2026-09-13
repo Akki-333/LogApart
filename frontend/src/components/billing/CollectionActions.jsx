@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatDay, formatPeriod } from '../../lib/money';
 import { BellRing, Gavel, Check, X, HandCoins } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 /**
  * The three things an admin does about money that has not arrived: confirm what
@@ -11,6 +12,7 @@ import { BellRing, Gavel, Check, X, HandCoins } from 'lucide-react';
  * charges them, so the table shown here is what will actually happen.
  */
 export default function CollectionActions({ period, onChanged }) {
+  const { toast, confirm, askReason } = useFeedback();
   const [declarations, setDeclarations] = useState([]);
   const [feePreview, setFeePreview] = useState(null);
   const [rule, setRule] = useState({ basis: 'FLAT', amount: 100, grace_days: 5 });
@@ -31,11 +33,13 @@ export default function CollectionActions({ period, onChanged }) {
     let note = '';
 
     if (!approve) {
-      note = window.prompt(`Why can ${formatRupees(declaration.amount)} from home ${declaration.unit_number} not be confirmed?`) || '';
-      if (note.trim().length < 4) {
-        alert('Say why before refusing a declared payment.');
-        return;
-      }
+      note = await askReason({
+        title: `Why can ${formatRupees(declaration.amount)} from home ${declaration.unit_number} not be confirmed?`,
+        message: 'The resident is told what you write here.',
+        reasonLabel: 'Reason',
+        confirmLabel: 'Refuse the payment'
+      });
+      if (note === null) return;
     }
 
     try {
@@ -43,7 +47,7 @@ export default function CollectionActions({ period, onChanged }) {
       load();
       onChanged();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not review that payment');
+      toast.error(error.response?.data?.message || 'Could not review that payment');
     }
   };
 
@@ -53,7 +57,7 @@ export default function CollectionActions({ period, onChanged }) {
       const response = await api.post('/api/billing/late-fees/preview', { ...rule, period });
       setFeePreview(response.data.data);
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not price the late fees');
+      toast.error(error.response?.data?.message || 'Could not price the late fees');
     } finally {
       setBusy(false);
     }
@@ -63,24 +67,29 @@ export default function CollectionActions({ period, onChanged }) {
     setBusy(true);
     try {
       const response = await api.post('/api/billing/late-fees', { ...rule, period });
-      alert(response.data.message);
+      toast.error(response.data.message);
       setFeePreview(null);
       onChanged();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not charge the late fees');
+      toast.error(error.response?.data?.message || 'Could not charge the late fees');
     } finally {
       setBusy(false);
     }
   };
 
   const remind = async () => {
-    if (!window.confirm(`Send a reminder to every home behind on ${formatPeriod(period)}? Each resident is told only about their own home.`)) return;
+    const go = await confirm({
+      title: `Remind every home behind on ${formatPeriod(period)}?`,
+      message: 'Each resident is told only about their own home.',
+      confirmLabel: 'Send reminders'
+    });
+    if (!go) return;
 
     try {
       const response = await api.post('/api/billing/reminders', { period });
-      alert(response.data.message);
+      toast.error(response.data.message);
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not send those reminders');
+      toast.error(error.response?.data?.message || 'Could not send those reminders');
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { homePathFor } from '../lib/roles';
@@ -7,6 +7,7 @@ import { Building2, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
 const MIN_LENGTH = 8;
 
 export default function ChangePassword() {
+  const fieldId = useId();
   const { user, changePassword, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -81,11 +82,11 @@ export default function ChangePassword() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">
+              <label className="block text-sm font-medium text-slate-700" htmlFor={`${fieldId}-field-3`}>
                 {isForced ? 'One-time password' : 'Current password'}
               </label>
               <div className="relative">
-                <input
+                <input id={`${fieldId}-field-3`}
                   type="password"
                   required
                   autoComplete="current-password"
@@ -97,8 +98,8 @@ export default function ChangePassword() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">New password</label>
-              <input
+              <label className="block text-sm font-medium text-slate-700" htmlFor={`${fieldId}-new-password`}>New password</label>
+              <input id={`${fieldId}-new-password`}
                 type="password"
                 required
                 autoComplete="new-password"
@@ -111,8 +112,8 @@ export default function ChangePassword() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700">Confirm new password</label>
-              <input
+              <label className="block text-sm font-medium text-slate-700" htmlFor={`${fieldId}-confirm-new-password`}>Confirm new password</label>
+              <input id={`${fieldId}-confirm-new-password`}
                 type="password"
                 required
                 autoComplete="new-password"

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { X, Home, Building2 } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 const EMPTY = {
   scope: 'COMMON',
@@ -16,6 +17,8 @@ const EMPTY = {
 const COMMON_PLACES = ['Lift A', 'Lift B', 'Stairwell', 'Terrace', 'Basement pump room', 'Car park', 'Main gate', 'Overhead tank'];
 
 export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
+  const fieldId = useId();
   const [formData, setFormData] = useState(EMPTY);
 
   if (!isOpen) return null;
@@ -34,9 +37,9 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-100 overflow-hidden">
+      <div ref={dialogRef} {...dialogProps} className="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-slate-100 overflow-hidden">
         <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-slate-50">
-          <h2 className="text-lg font-bold text-slate-800">Log Structural Issue</h2>
+          <h2 id={titleId} className="text-lg font-bold text-slate-800">Log Structural Issue</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -44,8 +47,8 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">What does this affect?</label>
-            <div className="grid grid-cols-2 gap-2 mb-3">
+            <span id={`${fieldId}-scope-group`} className="block text-sm font-medium text-slate-700 mb-1.5">What does this affect?</span>
+            <div className="grid grid-cols-2 gap-2 mb-3" role="group" aria-labelledby={`${fieldId}-scope-group`}>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, scope: 'COMMON' })}
@@ -103,8 +106,8 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Issue Title</label>
-            <input
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`${fieldId}-issue-title`}>Issue Title</label>
+            <input id={`${fieldId}-issue-title`}
               required
               type="text"
               placeholder="e.g. Water leaking from ceiling"
@@ -115,8 +118,8 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-            <textarea
+            <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`${fieldId}-description`}>Description</label>
+            <textarea id={`${fieldId}-description`}
               required
               rows={3}
               placeholder="Provide details about the structural issue..."
@@ -128,8 +131,8 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-              <select
+              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`${fieldId}-category`}>Category</label>
+              <select id={`${fieldId}-category`}
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm"
@@ -142,8 +145,8 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Priority (SLA)</label>
-              <select
+              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`${fieldId}-priority-sla`}>Priority (SLA)</label>
+              <select id={`${fieldId}-priority-sla`}
                 value={formData.priority}
                 onChange={(e) => setFormData({...formData, priority: e.target.value})}
                 className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm"

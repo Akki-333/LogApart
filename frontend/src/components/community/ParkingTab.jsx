@@ -1,11 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
 import { formatDay } from '../../lib/money';
 import { Car, Plus, X, Trash2, AlertTriangle, Check, Repeat } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
+import useDialog from '../common/useDialog';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ParkingTab({ onAction }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
+  const fieldId = useId();
+  const { toast, confirm } = useFeedback();
   const [bays, setBays] = useState([]);
   const [violations, setViolations] = useState([]);
   const [units, setUnits] = useState([]);
@@ -57,19 +62,25 @@ export default function ParkingTab({ onAction }) {
       });
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not update that bay.');
+      toast.error(err.response?.data?.message || 'Could not update that bay.');
     }
   };
 
   const removeBay = async (bay) => {
-    if (!window.confirm(`Remove bay ${bay.bay_number}? Its violation history goes with it.`)) return;
+    const go = await confirm({
+      title: `Remove bay ${bay.bay_number}?`,
+      message: 'Its violation history goes with it.',
+      confirmLabel: 'Remove the bay',
+      tone: 'danger'
+    });
+    if (!go) return;
 
     try {
       const res = await api.delete(`/api/parking/bays/${bay.id}`);
       onAction(res.data.message);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not remove that bay.');
+      toast.error(err.response?.data?.message || 'Could not remove that bay.');
     }
   };
 
@@ -79,7 +90,7 @@ export default function ParkingTab({ onAction }) {
       onAction(status === 'WAIVED' ? 'Violation waived.' : 'Violation closed.');
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not update that violation.');
+      toast.error(err.response?.data?.message || 'Could not update that violation.');
     }
   };
 
@@ -237,13 +248,13 @@ export default function ParkingTab({ onAction }) {
 
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+          <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-100 text-teal-800 rounded-xl">
                   <Car className="w-5 h-5" />
                 </div>
-                <h2 className="text-lg font-bold text-slate-800">Add a parking bay</h2>
+                <h2 id={titleId} className="text-lg font-bold text-slate-800">Add a parking bay</h2>
               </div>
               <button onClick={() => setIsOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5" />
@@ -259,20 +270,20 @@ export default function ParkingTab({ onAction }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Bay number</label>
-                  <input type="text" required maxLength={20} placeholder="P-14" value={form.bay_number}
+                  <label className={label} htmlFor={`${fieldId}-bay-number`}>Bay number</label>
+                  <input id={`${fieldId}-bay-number`} type="text" required maxLength={20} placeholder="P-14" value={form.bay_number}
                     onChange={(e) => setForm({ ...form, bay_number: e.target.value.toUpperCase() })} className={field} />
                 </div>
                 <div>
-                  <label className={label}>Level</label>
-                  <input type="text" maxLength={20} placeholder="Ground" value={form.level}
+                  <label className={label} htmlFor={`${fieldId}-level`}>Level</label>
+                  <input id={`${fieldId}-level`} type="text" maxLength={20} placeholder="Ground" value={form.level}
                     onChange={(e) => setForm({ ...form, level: e.target.value })} className={field} />
                 </div>
               </div>
 
               <div>
-                <label className={label}>Allot to</label>
-                <select value={form.unit_id} onChange={(e) => setForm({ ...form, unit_id: e.target.value })} className={field}>
+                <label className={label} htmlFor={`${fieldId}-allot-to`}>Allot to</label>
+                <select id={`${fieldId}-allot-to`} value={form.unit_id} onChange={(e) => setForm({ ...form, unit_id: e.target.value })} className={field}>
                   <option value="">Leave unallotted</option>
                   {units.map((unit) => (
                     <option key={unit.unit_id} value={unit.unit_id}>Home {unit.number}</option>
@@ -281,8 +292,8 @@ export default function ParkingTab({ onAction }) {
               </div>
 
               <div>
-                <label className={label}>Registered vehicle</label>
-                <input type="text" maxLength={50} placeholder="TN 09 AB 1234" value={form.vehicle_number}
+                <label className={label} htmlFor={`${fieldId}-registered-vehicle`}>Registered vehicle</label>
+                <input id={`${fieldId}-registered-vehicle`} type="text" maxLength={50} placeholder="TN 09 AB 1234" value={form.vehicle_number}
                   onChange={(e) => setForm({ ...form, vehicle_number: e.target.value.toUpperCase() })} className={field} />
                 <p className="mt-1 text-[11px] text-slate-500">Any other plate in this bay counts as a violation.</p>
               </div>

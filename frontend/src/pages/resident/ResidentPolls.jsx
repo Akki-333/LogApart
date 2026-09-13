@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatDay } from '../../lib/money';
 import { Vote, CheckCircle2, Users } from 'lucide-react';
+import { useFeedback } from '../../components/common/Feedback';
 
 /**
  * Society decisions. A household gets one vote, and the screen says so, because
@@ -9,6 +10,7 @@ import { Vote, CheckCircle2, Users } from 'lucide-react';
  * rather than assume the app is broken.
  */
 export default function ResidentPolls() {
+  const { toast, confirm } = useFeedback();
   const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState('');
@@ -27,14 +29,19 @@ export default function ResidentPolls() {
   useEffect(() => { load(); }, [load]);
 
   const vote = async (poll, option) => {
-    if (!window.confirm(`Vote "${option.label}" on behalf of your home? A household votes once.`)) return;
+    const go = await confirm({
+      title: `Vote "${option.label}"?`,
+      message: 'This is your household’s one vote and it cannot be changed.',
+      confirmLabel: 'Cast the vote'
+    });
+    if (!go) return;
 
     try {
       const response = await api.post(`/api/polls/${poll.id}/vote`, { option_id: option.id });
       setBanner(response.data.message);
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not record that vote');
+      toast.error(error.response?.data?.message || 'Could not record that vote');
     }
   };
 

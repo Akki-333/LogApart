@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../lib/api';
 import { Users, Search, LogIn, LogOut, CircleDot } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 /**
  * The gate desk's one-tap panel for daily helpers. These people come every
@@ -8,6 +9,7 @@ import { Users, Search, LogIn, LogOut, CircleDot } from 'lucide-react';
  * waste of a guard's time.
  */
 export default function HelperCheckIn({ onAction }) {
+  const { toast } = useFeedback();
   const [helpers, setHelpers] = useState([]);
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(null);
@@ -29,7 +31,7 @@ export default function HelperCheckIn({ onAction }) {
       onAction(res.data.message);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not record that.');
+      toast.error(err.response?.data?.message || 'Could not record that.');
     } finally {
       setBusy(null);
     }

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { Users, Car, Trash2, Plus, BookUser, Phone } from 'lucide-react';
+import { useFeedback } from '../../components/common/Feedback';
 
 /**
  * Who lives here, what they drive, and whether the home wants to be findable.
  * The directory is off by default, and leaving it never stops you reading it.
  */
 export default function ResidentHousehold() {
+  const { toast } = useFeedback();
   const [household, setHousehold] = useState(null);
   const [directory, setDirectory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export default function ResidentHousehold() {
       setMember({ name: '', relation: '', phone: '' });
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not add them');
+      toast.error(error.response?.data?.message || 'Could not add them');
     }
   };
 
@@ -48,7 +50,7 @@ export default function ResidentHousehold() {
       setVehicle({ number_plate: '', vehicle_type: 'CAR', model: '' });
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not register that vehicle');
+      toast.error(error.response?.data?.message || 'Could not register that vehicle');
     }
   };
 
@@ -57,7 +59,7 @@ export default function ResidentHousehold() {
       await api.delete(`/api/household/${kind}/${id}`);
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not remove that');
+      toast.error(error.response?.data?.message || 'Could not remove that');
     }
   };
 
@@ -66,7 +68,7 @@ export default function ResidentHousehold() {
       await api.put('/api/household/directory', { show_in_directory: !household.show_in_directory });
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not change that');
+      toast.error(error.response?.data?.message || 'Could not change that');
     }
   };
 

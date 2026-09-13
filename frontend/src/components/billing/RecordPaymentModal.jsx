@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatDay, formatPeriod } from '../../lib/money';
 import { X, IndianRupee, Receipt, Clock } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 const MODES = [
   { value: 'UPI', label: 'UPI' },
@@ -18,6 +19,8 @@ const today = () => new Date().toISOString().slice(0, 10);
  * not a payment gateway, so this writes down a settlement rather than taking one.
  */
 export default function RecordPaymentModal({ invoiceId, isOpen, onClose, onRecorded }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
+  const fieldId = useId();
   const [invoice, setInvoice] = useState(null);
   const [form, setForm] = useState({ amount: '', mode: 'UPI', reference: '', paid_on: today(), note: '' });
   const [error, setError] = useState('');
@@ -74,14 +77,14 @@ export default function RecordPaymentModal({ invoiceId, isOpen, onClose, onRecor
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+      <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
               <IndianRupee className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Record a payment</h2>
+              <h2 id={titleId} className="text-lg font-bold text-slate-800">Record a payment</h2>
               <p className="text-xs text-slate-500">
                 {invoice ? `Home ${invoice.unit_number}, ${formatPeriod(invoice.period_month)}` : 'Loading invoice...'}
               </p>
@@ -138,8 +141,8 @@ export default function RecordPaymentModal({ invoiceId, isOpen, onClose, onRecor
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Amount received</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-amount-received`}>Amount received</label>
+                  <input id={`${fieldId}-amount-received`}
                     type="number" required min="0.01" step="0.01" max={invoice.balance}
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -148,8 +151,8 @@ export default function RecordPaymentModal({ invoiceId, isOpen, onClose, onRecor
                   <p className="mt-1 text-[11px] text-slate-500">Part payments are allowed.</p>
                 </div>
                 <div>
-                  <label className={label}>Received on</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-received-on`}>Received on</label>
+                  <input id={`${fieldId}-received-on`}
                     type="date" required value={form.paid_on}
                     onChange={(e) => setForm({ ...form, paid_on: e.target.value })}
                     className={field}
@@ -159,16 +162,16 @@ export default function RecordPaymentModal({ invoiceId, isOpen, onClose, onRecor
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Paid by</label>
-                  <select value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })} className={field}>
+                  <label className={label} htmlFor={`${fieldId}-paid-by`}>Paid by</label>
+                  <select id={`${fieldId}-paid-by`} value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })} className={field}>
                     {MODES.map((m) => (
                       <option key={m.value} value={m.value}>{m.label}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className={label}>Reference</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-reference`}>Reference</label>
+                  <input id={`${fieldId}-reference`}
                     type="text" maxLength={100} placeholder="UPI ref or cheque no."
                     value={form.reference}
                     onChange={(e) => setForm({ ...form, reference: e.target.value })}
@@ -178,8 +181,8 @@ export default function RecordPaymentModal({ invoiceId, isOpen, onClose, onRecor
               </div>
 
               <div>
-                <label className={label}>Note (optional)</label>
-                <input
+                <label className={label} htmlFor={`${fieldId}-note-optional`}>Note (optional)</label>
+                <input id={`${fieldId}-note-optional`}
                   type="text" maxLength={255} placeholder="e.g. Collected at the office"
                   value={form.note}
                   onChange={(e) => setForm({ ...form, note: e.target.value })}

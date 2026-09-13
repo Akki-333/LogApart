@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatPeriod, currentPeriod } from '../../lib/money';
 import { HardHat, Plus, X, Check, Minus, Sun, Ban } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
+import useDialog from '../common/useDialog';
 
 const MARKS = [
   { value: 'PRESENT', label: 'Present', icon: Check, tone: 'bg-emerald-600 text-white border-emerald-600' },
@@ -14,6 +16,9 @@ const markFor = (status) => MARKS.find((m) => m.value === status);
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function StaffTab({ onAction }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
+  const fieldId = useId();
+  const { toast } = useFeedback();
   const [period, setPeriod] = useState(currentPeriod());
   const [staff, setStaff] = useState([]);
   const [markDate, setMarkDate] = useState(today());
@@ -64,7 +69,7 @@ export default function StaffTab({ onAction }) {
       });
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not record that.');
+      toast.error(err.response?.data?.message || 'Could not record that.');
     }
   };
 
@@ -189,13 +194,13 @@ export default function StaffTab({ onAction }) {
 
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+          <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-100 text-teal-800 rounded-xl">
                   <HardHat className="w-5 h-5" />
                 </div>
-                <h2 className="text-lg font-bold text-slate-800">Add to the roster</h2>
+                <h2 id={titleId} className="text-lg font-bold text-slate-800">Add to the roster</h2>
               </div>
               <button onClick={() => setIsOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
                 <X className="w-5 h-5" />
@@ -211,33 +216,33 @@ export default function StaffTab({ onAction }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Name</label>
-                  <input type="text" required maxLength={255} value={form.name}
+                  <label className={label} htmlFor={`${fieldId}-name`}>Name</label>
+                  <input id={`${fieldId}-name`} type="text" required maxLength={255} value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })} className={field} />
                 </div>
                 <div>
-                  <label className={label}>Role</label>
-                  <input type="text" required maxLength={100} placeholder="Cleaner" value={form.role_title}
+                  <label className={label} htmlFor={`${fieldId}-role`}>Role</label>
+                  <input id={`${fieldId}-role`} type="text" required maxLength={100} placeholder="Cleaner" value={form.role_title}
                     onChange={(e) => setForm({ ...form, role_title: e.target.value })} className={field} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Phone</label>
-                  <input type="tel" maxLength={20} value={form.phone}
+                  <label className={label} htmlFor={`${fieldId}-phone`}>Phone</label>
+                  <input id={`${fieldId}-phone`} type="tel" maxLength={20} value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })} className={field} />
                 </div>
                 <div>
-                  <label className={label}>Started on</label>
-                  <input type="date" value={form.joined_on}
+                  <label className={label} htmlFor={`${fieldId}-started-on`}>Started on</label>
+                  <input id={`${fieldId}-started-on`} type="date" value={form.joined_on}
                     onChange={(e) => setForm({ ...form, joined_on: e.target.value })} className={field} />
                 </div>
               </div>
 
               <div>
-                <label className={label}>Monthly salary</label>
-                <input type="number" min="0" step="0.01" placeholder="0.00" value={form.monthly_salary}
+                <label className={label} htmlFor={`${fieldId}-monthly-salary`}>Monthly salary</label>
+                <input id={`${fieldId}-monthly-salary`} type="number" min="0" step="0.01" placeholder="0.00" value={form.monthly_salary}
                   onChange={(e) => setForm({ ...form, monthly_salary: e.target.value })} className={field} />
                 <p className="mt-1 text-[11px] text-slate-500">
                   Pay is prorated across the days of the month. A half day counts half, leave counts full.

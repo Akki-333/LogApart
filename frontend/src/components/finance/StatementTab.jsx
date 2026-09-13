@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatRupeesShort, formatPeriod, currentPeriod } from '../../lib/money';
 import { Download, TrendingDown, TrendingUp, Wallet, PiggyBank, AlertCircle } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 // Written out rather than interpolated, because Tailwind scans for whole class
 // names and a colour built from a variable is simply not in the stylesheet.
@@ -29,6 +30,7 @@ const Figure = ({ label, value, hint, tone = 'slate', icon: Icon }) => (
  * folding it into the closing balance would stop the figure matching the bank.
  */
 export default function StatementTab() {
+  const { toast } = useFeedback();
   const [period, setPeriod] = useState(currentPeriod());
   const [statement, setStatement] = useState(null);
   const [corpus, setCorpus] = useState(null);
@@ -64,7 +66,7 @@ export default function StatementTab() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      alert('Could not export that month.');
+      toast.error('Could not export that month.');
     }
   };
 

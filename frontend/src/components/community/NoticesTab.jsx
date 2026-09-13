@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
 import { formatDay } from '../../lib/money';
 import { Megaphone, Plus, X, Trash2, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
+import useDialog from '../common/useDialog';
 
 const CATEGORIES = [
   { value: 'GENERAL', label: 'General', tone: 'bg-slate-100 text-slate-700 border-slate-200' },
@@ -15,6 +17,9 @@ const toneFor = (category) => CATEGORIES.find((c) => c.value === category)?.tone
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function NoticesTab({ onAction }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
+  const fieldId = useId();
+  const { toast, confirm } = useFeedback();
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -59,19 +64,25 @@ export default function NoticesTab({ onAction }) {
       onAction(notice.is_published ? 'Notice taken down.' : 'Notice put back up.');
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not update that notice.');
+      toast.error(err.response?.data?.message || 'Could not update that notice.');
     }
   };
 
   const remove = async (notice) => {
-    if (!window.confirm(`Delete "${notice.title}" permanently?`)) return;
+    const go = await confirm({
+      title: `Delete "${notice.title}"?`,
+      message: 'This cannot be undone.',
+      confirmLabel: 'Delete it',
+      tone: 'danger'
+    });
+    if (!go) return;
 
     try {
       const res = await api.delete(`/api/notices/${notice.id}`);
       onAction(res.data.message);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not delete that notice.');
+      toast.error(err.response?.data?.message || 'Could not delete that notice.');
     }
   };
 
@@ -174,14 +185,14 @@ export default function NoticesTab({ onAction }) {
 
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
+          <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
                   <Megaphone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">Post a notice</h2>
+                  <h2 id={titleId} className="text-lg font-bold text-slate-800">Post a notice</h2>
                   <p className="text-xs text-slate-500">Everyone it is addressed to is notified</p>
                 </div>
               </div>
@@ -198,27 +209,27 @@ export default function NoticesTab({ onAction }) {
               )}
 
               <div>
-                <label className={label}>Headline</label>
-                <input type="text" required maxLength={255} placeholder="Overhead tank cleaning"
+                <label className={label} htmlFor={`${fieldId}-headline`}>Headline</label>
+                <input id={`${fieldId}-headline`} type="text" required maxLength={255} placeholder="Overhead tank cleaning"
                   value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={field} />
               </div>
 
               <div>
-                <label className={label}>The notice</label>
-                <textarea required rows={4} placeholder="Water supply pauses Saturday from 10am to 2pm."
+                <label className={label} htmlFor={`${fieldId}-the-notice`}>The notice</label>
+                <textarea id={`${fieldId}-the-notice`} required rows={4} placeholder="Water supply pauses Saturday from 10am to 2pm."
                   value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} className={field} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Kind</label>
-                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field}>
+                  <label className={label} htmlFor={`${fieldId}-kind`}>Kind</label>
+                  <select id={`${fieldId}-kind`} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field}>
                     {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={label}>Who sees it</label>
-                  <select value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} className={field}>
+                  <label className={label} htmlFor={`${fieldId}-who-sees-it`}>Who sees it</label>
+                  <select id={`${fieldId}-who-sees-it`} value={form.audience} onChange={(e) => setForm({ ...form, audience: e.target.value })} className={field}>
                     <option value="ALL">Everyone</option>
                     <option value="RESIDENT">Residents only</option>
                     <option value="SECURITY">Security only</option>
@@ -228,13 +239,13 @@ export default function NoticesTab({ onAction }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Goes up on</label>
-                  <input type="date" required value={form.starts_on}
+                  <label className={label} htmlFor={`${fieldId}-goes-up-on`}>Goes up on</label>
+                  <input id={`${fieldId}-goes-up-on`} type="date" required value={form.starts_on}
                     onChange={(e) => setForm({ ...form, starts_on: e.target.value })} className={field} />
                 </div>
                 <div>
-                  <label className={label}>Comes down on</label>
-                  <input type="date" min={form.starts_on} value={form.ends_on}
+                  <label className={label} htmlFor={`${fieldId}-comes-down-on`}>Comes down on</label>
+                  <input id={`${fieldId}-comes-down-on`} type="date" min={form.starts_on} value={form.ends_on}
                     onChange={(e) => setForm({ ...form, ends_on: e.target.value })} className={field} />
                   <p className="mt-1 text-[11px] text-slate-500">Leave blank to keep it up.</p>
                 </div>

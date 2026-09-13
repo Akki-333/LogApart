@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatDay } from '../../lib/money';
 import { CalendarDays, Clock, X, AlertCircle } from 'lucide-react';
+import { useFeedback } from '../../components/common/Feedback';
 
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const shortTime = (value) => String(value).slice(0, 5);
@@ -11,6 +12,7 @@ const shortTime = (value) => String(value).slice(0, 5);
  * to the opening hours reaches this screen without a release.
  */
 export default function ResidentAmenities() {
+  const { toast, confirm } = useFeedback();
   const [amenities, setAmenities] = useState([]);
   const [selected, setSelected] = useState(null);
   const [date, setDate] = useState(tomorrow());
@@ -64,19 +66,24 @@ export default function ResidentAmenities() {
       setBanner(response.data.message);
       loadBookings();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not book that slot');
+      toast.error(error.response?.data?.message || 'Could not book that slot');
     }
   };
 
   const cancel = async (booking) => {
-    if (!window.confirm(`Give up ${booking.amenity_name} on ${formatDay(booking.booking_date)}?`)) return;
+    const go = await confirm({
+      title: `Give up ${booking.amenity_name}?`,
+      message: `Your slot on ${formatDay(booking.booking_date)} goes back to the building.`,
+      confirmLabel: 'Give it up'
+    });
+    if (!go) return;
 
     try {
       await api.delete(`/api/amenities/bookings/${booking.id}`);
       setBanner('Booking cancelled. The slot is free again.');
       loadBookings();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not cancel that booking');
+      toast.error(error.response?.data?.message || 'Could not cancel that booking');
     }
   };
 

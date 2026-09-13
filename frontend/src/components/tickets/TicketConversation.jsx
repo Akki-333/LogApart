@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { MessageSquare, Send, Star, RotateCcw } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 const when = (value) =>
   new Date(value).toLocaleString('en-IN', {
@@ -15,6 +16,7 @@ const when = (value) =>
  * fails is worse than no button.
  */
 export default function TicketConversation({ ticketId, canRate = false, onChanged }) {
+  const { toast, askReason } = useFeedback();
   const [comments, setComments] = useState([]);
   const [meta, setMeta] = useState(null);
   const [draft, setDraft] = useState('');
@@ -43,37 +45,44 @@ export default function TicketConversation({ ticketId, canRate = false, onChange
       setDraft('');
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not send that');
+      toast.error(error.response?.data?.message || 'Could not send that');
     }
   };
 
   const rate = async (stars) => {
-    const note = window.prompt('Anything to add about the fix?') ?? '';
+    const note = await askReason({
+      title: `Rate this fix ${stars} out of 5`,
+      message: 'Anything you add goes to the office with the rating.',
+      reasonLabel: 'Anything to add, if you like',
+      confirmLabel: 'Send the rating',
+      minLength: 0
+    });
+    if (note === null) return;
 
     try {
       await api.post(`/api/tickets/${ticketId}/rating`, { rating: stars, note: note.trim() });
       load();
       if (onChanged) onChanged();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not record that rating');
+      toast.error(error.response?.data?.message || 'Could not record that rating');
     }
   };
 
   const reopen = async () => {
-    const reason = window.prompt('What is still wrong?');
+    const reason = await askReason({
+      title: 'What is still wrong?',
+      message: 'The issue goes back into the queue and the office is told.',
+      reasonLabel: 'What is still wrong',
+      confirmLabel: 'Reopen the issue'
+    });
     if (reason === null) return;
-
-    if (reason.trim().length < 4) {
-      alert('Say what is still wrong before reopening.');
-      return;
-    }
 
     try {
       await api.post(`/api/tickets/${ticketId}/reopen`, { reason: reason.trim() });
       load();
       if (onChanged) onChanged();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not reopen that issue');
+      toast.error(error.response?.data?.message || 'Could not reopen that issue');
     }
   };
 

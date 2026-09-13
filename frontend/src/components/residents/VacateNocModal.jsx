@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatDay, formatPeriod } from '../../lib/money';
 import { X, FileCheck2, Printer, AlertCircle, CheckCircle2, User, Home, Calendar, Loader2 } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
+  const fieldId = useId();
   const [moveOutDate, setMoveOutDate] = useState(new Date().toISOString().split('T')[0]);
   const [submitting, setSubmitting] = useState(false);
   const [showCertificate, setShowCertificate] = useState(false);
@@ -66,7 +69,7 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
         <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
@@ -75,7 +78,7 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
               <FileCheck2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Move-Out & NOC Clearance</h2>
+              <h2 id={titleId} className="text-lg font-bold text-slate-800">Move-Out & NOC Clearance</h2>
               <p className="text-xs text-slate-500">Vacating Home {unit.number} • {unit.resident_name}</p>
             </div>
           </div>
@@ -175,10 +178,10 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
 
               {/* Move out date input */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5" htmlFor={`${fieldId}-official-move-out-date`}>
                   Official Move-Out Date
                 </label>
-                <input
+                <input id={`${fieldId}-official-move-out-date`}
                   type="date"
                   value={moveOutDate}
                   onChange={(e) => setMoveOutDate(e.target.value)}
@@ -188,9 +191,9 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
 
               {/* Dues audit, read from the billing ledger */}
               <div className="space-y-2 pt-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                <h3 className="block text-xs font-bold uppercase tracking-wider text-slate-500">
                   Dues audit
-                </label>
+                </h3>
 
                 {duesLoading && (
                   <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">

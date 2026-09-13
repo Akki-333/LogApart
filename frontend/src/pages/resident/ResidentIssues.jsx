@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
 import TicketConversation from '../../components/tickets/TicketConversation';
 import { formatDay } from '../../lib/money';
 import { Wrench, Plus, X, CheckCircle2, Clock, AlertCircle, Info, Building2, Home } from 'lucide-react';
+import useDialog from '../../components/common/useDialog';
 
 const CATEGORIES = [
   { value: 'PLUMBING', label: 'Plumbing or seepage' },
@@ -22,6 +23,8 @@ const STATUS_STYLES = {
 };
 
 export default function ResidentIssues() {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
+  const fieldId = useId();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -173,14 +176,14 @@ export default function ResidentIssues() {
 
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
+          <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
                   <Wrench className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">Report an issue</h2>
+                  <h2 id={titleId} className="text-lg font-bold text-slate-800">Report an issue</h2>
                   <p className="text-xs text-slate-500">The building admin is notified straight away</p>
                 </div>
               </div>
@@ -197,8 +200,8 @@ export default function ResidentIssues() {
               )}
 
               <div>
-                <label className={label}>What does this affect?</label>
-                <div className="grid grid-cols-2 gap-2 mt-1.5">
+                <span id={`${fieldId}-scope-group`} className={label}>What does this affect?</span>
+                <div className="grid grid-cols-2 gap-2 mt-1.5" role="group" aria-labelledby={`${fieldId}-scope-group`}>
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, scope: 'COMMON' })}
@@ -224,8 +227,8 @@ export default function ResidentIssues() {
 
               {form.scope === 'COMMON' && (
                 <div>
-                  <label className={label}>Where is it</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-where-is-it`}>Where is it</label>
+                  <input id={`${fieldId}-where-is-it`}
                     type="text" required maxLength={100}
                     placeholder="e.g. Lift A, third floor stairwell, terrace"
                     value={form.location}
@@ -236,8 +239,8 @@ export default function ResidentIssues() {
               )}
 
               <div>
-                <label className={label}>What is wrong</label>
-                <input
+                <label className={label} htmlFor={`${fieldId}-what-is-wrong`}>What is wrong</label>
+                <input id={`${fieldId}-what-is-wrong`}
                   type="text" required maxLength={255}
                   placeholder="e.g. Seepage on the stairwell wall"
                   value={form.title}
@@ -247,8 +250,8 @@ export default function ResidentIssues() {
               </div>
 
               <div>
-                <label className={label}>Category</label>
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field}>
+                <label className={label} htmlFor={`${fieldId}-category`}>Category</label>
+                <select id={`${fieldId}-category`} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className={field}>
                   {CATEGORIES.map((category) => (
                     <option key={category.value} value={category.value}>{category.label}</option>
                   ))}
@@ -256,8 +259,8 @@ export default function ResidentIssues() {
               </div>
 
               <div>
-                <label className={label}>Tell us more</label>
-                <textarea
+                <label className={label} htmlFor={`${fieldId}-tell-us-more`}>Tell us more</label>
+                <textarea id={`${fieldId}-tell-us-more`}
                   required rows={4}
                   placeholder="Where exactly is it, and when did you first notice it?"
                   value={form.description}

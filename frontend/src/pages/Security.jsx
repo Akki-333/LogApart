@@ -6,6 +6,7 @@ import EditVisitorModal from '../components/security/EditVisitorModal';
 import PassLookup from '../components/security/PassLookup';
 import HelperCheckIn from '../components/security/HelperCheckIn';
 import ParcelDesk from '../components/security/ParcelDesk';
+import { useFeedback } from '../components/common/Feedback';
 import { 
   ShieldCheck, 
   UserCheck, 
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 
 export default function Security({ readOnly = false }) {
+  const { toast, confirm, askReason } = useFeedback();
   const { token } = useContext(AuthContext);
   const [visitors, setVisitors] = useState([]);
   const [units, setUnits] = useState([]);
@@ -71,12 +73,17 @@ export default function Security({ readOnly = false }) {
   };
 
   const handleCheckout = async (visitorId) => {
-    if (!window.confirm("Check out this visitor and record exit time?")) return;
+    const go = await confirm({
+      title: 'Check this visitor out?',
+      message: 'The exit time is recorded now.',
+      confirmLabel: 'Check out'
+    });
+    if (!go) return;
     try {
       await api.put(`/api/security/visitors/${visitorId}/checkout`, {});
       fetchVisitors();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error checking out visitor');
+      toast.error(error.response?.data?.message || 'Error checking out visitor');
     }
   };
 
@@ -86,7 +93,7 @@ export default function Security({ readOnly = false }) {
       setIsLogModalOpen(false);
       fetchVisitors();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error logging visitor');
+      toast.error(error.response?.data?.message || 'Error logging visitor');
     }
   };
 
@@ -96,26 +103,26 @@ export default function Security({ readOnly = false }) {
       setIsEditModalOpen(false);
       fetchVisitors();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error updating visitor entry');
+      toast.error(error.response?.data?.message || 'Error updating visitor entry');
     }
   };
 
   // The record is withdrawn from the desk rather than destroyed, so the reason
   // is not a formality: it is the only explanation the audit trail will carry.
   const handleDeleteVisitor = async (visitorId) => {
-    const reason = window.prompt('Why is this gate entry being removed? It stays in the building record.');
+    const reason = await askReason({
+      title: 'Why is this gate entry being removed?',
+      message: 'It leaves the desk but stays in the building record, with your reason attached.',
+      confirmLabel: 'Remove the entry',
+      tone: 'danger'
+    });
     if (reason === null) return;
-
-    if (reason.trim().length < 4) {
-      alert('Give a short reason before removing a gate entry.');
-      return;
-    }
 
     try {
       await api.delete(`/api/security/visitors/${visitorId}`, { data: { reason: reason.trim() } });
       fetchVisitors();
     } catch (error) {
-      alert(error.response?.data?.message || 'Error removing visitor entry');
+      toast.error(error.response?.data?.message || 'Error removing visitor entry');
     }
   };
 

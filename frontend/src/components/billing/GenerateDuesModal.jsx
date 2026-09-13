@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatPeriod, currentPeriod } from '../../lib/money';
 import { X, Calculator, Zap, Droplets, Home, AlertTriangle, Loader2 } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 const tenthOf = (period) => `${period}-10`;
 
@@ -10,6 +11,8 @@ const tenthOf = (period) => `${period}-10`;
  * prices every line on the server and shows it before it will commit anything.
  */
 export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
+  const fieldId = useId();
   const [form, setForm] = useState({
     period: currentPeriod(),
     due_date: tenthOf(currentPeriod()),
@@ -111,14 +114,14 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+      <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-teal-100 text-teal-800 rounded-xl">
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Generate monthly dues</h2>
+              <h2 id={titleId} className="text-lg font-bold text-slate-800">Generate monthly dues</h2>
               <p className="text-xs text-slate-500">Raises one invoice per occupied home</p>
             </div>
           </div>
@@ -137,12 +140,12 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={label}>Billing month</label>
-                <input type="month" required value={form.period} onChange={(e) => update('period', e.target.value)} className={field} />
+                <label className={label} htmlFor={`${fieldId}-billing-month`}>Billing month</label>
+                <input id={`${fieldId}-billing-month`} type="month" required value={form.period} onChange={(e) => update('period', e.target.value)} className={field} />
               </div>
               <div>
-                <label className={label}>Payment due by</label>
-                <input type="date" required value={form.due_date} onChange={(e) => update('due_date', e.target.value)} className={field} />
+                <label className={label} htmlFor={`${fieldId}-payment-due-by`}>Payment due by</label>
+                <input id={`${fieldId}-payment-due-by`} type="date" required value={form.due_date} onChange={(e) => update('due_date', e.target.value)} className={field} />
               </div>
             </div>
 
@@ -153,8 +156,8 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>{form.rate_basis === 'FLAT' ? 'Per home' : 'Per square foot'}</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-field-7`}>{form.rate_basis === 'FLAT' ? 'Per home' : 'Per square foot'}</label>
+                  <input id={`${fieldId}-field-7`}
                     type="number" min="0" step="0.01" placeholder="0.00"
                     value={form.maintenance_rate}
                     onChange={(e) => update('maintenance_rate', e.target.value)}
@@ -162,8 +165,8 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                   />
                 </div>
                 <div>
-                  <label className={label}>Charged</label>
-                  <select value={form.rate_basis} onChange={(e) => update('rate_basis', e.target.value)} className={field}>
+                  <label className={label} htmlFor={`${fieldId}-charged`}>Charged</label>
+                  <select id={`${fieldId}-charged`} value={form.rate_basis} onChange={(e) => update('rate_basis', e.target.value)} className={field}>
                     <option value="FLAT">Same for every home</option>
                     <option value="PER_SQFT">By carpet area</option>
                   </select>
@@ -171,8 +174,8 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
               </div>
 
               <div>
-                <label className={label}>Corpus per home</label>
-                <input
+                <label className={label} htmlFor={`${fieldId}-corpus-per-home`}>Corpus per home</label>
+                <input id={`${fieldId}-corpus-per-home`}
                   type="number" min="0" step="0.01" placeholder="0.00"
                   value={form.corpus_rate}
                   onChange={(e) => update('corpus_rate', e.target.value)}
@@ -196,8 +199,8 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
               </p>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className={label}>Electricity total</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-electricity-total`}>Electricity total</label>
+                  <input id={`${fieldId}-electricity-total`}
                     type="number" min="0" step="0.01" placeholder="0.00"
                     value={form.common_electricity_total}
                     onChange={(e) => update('common_electricity_total', e.target.value)}
@@ -205,8 +208,8 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                   />
                 </div>
                 <div>
-                  <label className={label}>Water total</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-water-total`}>Water total</label>
+                  <input id={`${fieldId}-water-total`}
                     type="number" min="0" step="0.01" placeholder="0.00"
                     value={form.common_water_total}
                     onChange={(e) => update('common_water_total', e.target.value)}
@@ -214,8 +217,8 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
                   />
                 </div>
                 <div>
-                  <label className={label}>Split</label>
-                  <select value={form.split_basis} onChange={(e) => update('split_basis', e.target.value)} className={field}>
+                  <label className={label} htmlFor={`${fieldId}-split`}>Split</label>
+                  <select id={`${fieldId}-split`} value={form.split_basis} onChange={(e) => update('split_basis', e.target.value)} className={field}>
                     <option value="EQUAL">Equally</option>
                     <option value="PER_SQFT">By carpet area</option>
                   </select>
@@ -224,8 +227,8 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
             </div>
 
             <div>
-              <label className={label}>Note (optional)</label>
-              <input
+              <label className={label} htmlFor={`${fieldId}-note-optional`}>Note (optional)</label>
+              <input id={`${fieldId}-note-optional`}
                 type="text" maxLength={255} placeholder="e.g. Includes borewell motor repair"
                 value={form.note}
                 onChange={(e) => update('note', e.target.value)}

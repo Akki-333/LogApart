@@ -1,6 +1,7 @@
 import { useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
+import { FeedbackProvider } from './components/common/Feedback';
 import { homePathFor, ADMIN_ROLES } from './lib/roles';
 
 import Login from './pages/Login';
@@ -122,11 +123,13 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
+    <FeedbackProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </FeedbackProvider>
   );
 }
 

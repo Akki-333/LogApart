@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, KeyRound, Copy, Check, AlertTriangle } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 /**
  * Shown once, after onboarding or after a password is re-issued. The password
@@ -7,6 +8,7 @@ import { X, KeyRound, Copy, Check, AlertTriangle } from 'lucide-react';
  * down the only route back is another re-issue.
  */
 export default function TempPasswordDialog({ credentials, onClose }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(Boolean(credentials), onClose);
   const [copied, setCopied] = useState(false);
 
   if (!credentials) return null;
@@ -25,14 +27,14 @@ export default function TempPasswordDialog({ credentials, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
+      <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden">
         <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-teal-100 text-teal-800 rounded-xl">
               <KeyRound className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-800">
+              <h2 id={titleId} className="text-base font-bold text-slate-800">
                 {credentials.heading || 'Resident account created'}
               </h2>
               <p className="text-xs text-slate-500">Pass these details on to {credentials.name}</p>

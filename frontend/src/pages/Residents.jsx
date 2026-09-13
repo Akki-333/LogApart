@@ -8,6 +8,7 @@ import OnboardResidentModal from '../components/residents/OnboardResidentModal';
 import EditResidentModal from '../components/residents/EditResidentModal';
 import VacateNocModal from '../components/residents/VacateNocModal';
 import TempPasswordDialog from '../components/residents/TempPasswordDialog';
+import { useFeedback } from '../components/common/Feedback';
 import { 
   LayoutGrid, 
   List, 
@@ -23,6 +24,7 @@ import {
 } from 'lucide-react';
 
 export default function Residents() {
+  const { toast, askReason } = useFeedback();
   const { token } = useContext(AuthContext);
   const [unitsData, setUnitsData] = useState(null);
   const [homeList, setHomeList] = useState([]);
@@ -114,22 +116,20 @@ export default function Residents() {
 
       fetchUnits();
     } catch (err) {
-      alert(err.response?.data?.message || 'Error assigning resident');
+      toast.error(err.response?.data?.message || 'Error assigning resident');
     }
   };
 
   // A resident who forgets their password has no other way back in, so the
   // admin issues a new one-time password and the reason goes into the log.
   const handleReissuePassword = async (unit) => {
-    const reason = window.prompt(
-      `Why is a new password being issued for home ${unit.number}? This ends every session on that account.`
-    );
+    const reason = await askReason({
+      title: `Issue a new password for home ${unit.number}?`,
+      message: 'Every session on that account ends immediately, and the reason goes into the activity log.',
+      confirmLabel: 'Issue a new password',
+      tone: 'danger'
+    });
     if (reason === null) return;
-
-    if (reason.trim().length < 4) {
-      alert('Record a short reason before re-issuing a password.');
-      return;
-    }
 
     try {
       const response = await api.post(`/api/units/${unit.unit_id || unit.id}/resident/password`, {
@@ -144,7 +144,7 @@ export default function Residents() {
         password: issued.temp_password
       });
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not re-issue that password');
+      toast.error(err.response?.data?.message || 'Could not re-issue that password');
     }
   };
 
@@ -154,7 +154,7 @@ export default function Residents() {
       setIsEditOpen(false);
       fetchUnits();
     } catch (err) {
-      alert(err.response?.data?.message || 'Error updating resident details');
+      toast.error(err.response?.data?.message || 'Error updating resident details');
     }
   };
 

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
 import { formatDay } from '../../lib/money';
 import { Users, Plus, X, Pencil, Clock, CircleDot } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 const TYPES = [
   { value: 'MAID', label: 'Maid' },
@@ -20,6 +21,8 @@ const EMPTY = {
 };
 
 export default function HelpersTab({ onAction }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
+  const fieldId = useId();
   const [helpers, setHelpers] = useState([]);
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -188,14 +191,14 @@ export default function HelpersTab({ onAction }) {
 
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+          <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-teal-100 text-teal-800 rounded-xl">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit helper' : 'Add a helper'}</h2>
+                  <h2 id={titleId} className="text-lg font-bold text-slate-800">{editing ? 'Edit helper' : 'Add a helper'}</h2>
                   <p className="text-xs text-slate-500">Link them to every home they work for</p>
                 </div>
               </div>
@@ -213,13 +216,13 @@ export default function HelpersTab({ onAction }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Name</label>
-                  <input type="text" required maxLength={255} value={form.name}
+                  <label className={label} htmlFor={`${fieldId}-name`}>Name</label>
+                  <input id={`${fieldId}-name`} type="text" required maxLength={255} value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })} className={field} />
                 </div>
                 <div>
-                  <label className={label}>They are a</label>
-                  <select value={form.helper_type} onChange={(e) => setForm({ ...form, helper_type: e.target.value })} className={field}>
+                  <label className={label} htmlFor={`${fieldId}-they-are-a`}>They are a</label>
+                  <select id={`${fieldId}-they-are-a`} value={form.helper_type} onChange={(e) => setForm({ ...form, helper_type: e.target.value })} className={field}>
                     {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
@@ -227,24 +230,24 @@ export default function HelpersTab({ onAction }) {
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className={label}>Phone</label>
-                  <input type="tel" maxLength={20} value={form.phone}
+                  <label className={label} htmlFor={`${fieldId}-phone`}>Phone</label>
+                  <input id={`${fieldId}-phone`} type="tel" maxLength={20} value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })} className={field} />
                 </div>
                 <div>
-                  <label className={label}>ID type</label>
-                  <input type="text" maxLength={50} placeholder="Aadhaar" value={form.id_proof_type}
+                  <label className={label} htmlFor={`${fieldId}-id-type`}>ID type</label>
+                  <input id={`${fieldId}-id-type`} type="text" maxLength={50} placeholder="Aadhaar" value={form.id_proof_type}
                     onChange={(e) => setForm({ ...form, id_proof_type: e.target.value })} className={field} />
                 </div>
                 <div>
-                  <label className={label}>ID number</label>
-                  <input type="text" maxLength={50} value={form.id_proof_number}
+                  <label className={label} htmlFor={`${fieldId}-id-number`}>ID number</label>
+                  <input id={`${fieldId}-id-number`} type="text" maxLength={50} value={form.id_proof_number}
                     onChange={(e) => setForm({ ...form, id_proof_number: e.target.value })} className={field} />
                 </div>
               </div>
 
               <div>
-                <label className={label}>Homes they work for</label>
+                <label className={label} htmlFor={`${fieldId}-homes-they-work-for`}>Homes they work for</label>
                 <div className="mt-2 flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50">
                   {units.map((unit) => (
                     <button
@@ -268,7 +271,7 @@ export default function HelpersTab({ onAction }) {
 
               {editing && (
                 <label className="flex items-center gap-2.5 text-xs text-slate-700">
-                  <input type="checkbox" checked={form.is_active}
+                  <input id={`${fieldId}-homes-they-work-for`} type="checkbox" checked={form.is_active}
                     onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="accent-teal-600" />
                   On the registry. Uncheck when they stop working here.
                 </label>

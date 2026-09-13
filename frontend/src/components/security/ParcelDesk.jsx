@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { Package, PackageCheck, Plus } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 const when = (value) =>
   new Date(value).toLocaleString('en-IN', {
@@ -14,6 +15,7 @@ const when = (value) =>
  * is being held without reaching across the desk and handing it over.
  */
 export default function ParcelDesk({ units = [], readOnly = false, dark = false }) {
+  const { toast, askReason } = useFeedback();
   const [parcels, setParcels] = useState([]);
   const [form, setForm] = useState({ unit_id: '', courier: '', description: '' });
   const [isOpen, setIsOpen] = useState(false);
@@ -38,29 +40,29 @@ export default function ParcelDesk({ units = [], readOnly = false, dark = false 
         courier: form.courier || null,
         description: form.description || null
       });
-      alert(response.data.message);
+      toast.error(response.data.message);
       setForm({ unit_id: '', courier: '', description: '' });
       setIsOpen(false);
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not record that parcel');
+      toast.error(error.response?.data?.message || 'Could not record that parcel');
     }
   };
 
   const release = async (parcel) => {
-    const name = window.prompt(`Who is collecting the parcel for home ${parcel.unit_number}?`);
+    const name = await askReason({
+      title: `Who is collecting the parcel for home ${parcel.unit_number}?`,
+      reasonLabel: 'Name of whoever is collecting it',
+      confirmLabel: 'Hand it over',
+      minLength: 2
+    });
     if (name === null) return;
-
-    if (name.trim().length < 2) {
-      alert('Record who collected it.');
-      return;
-    }
 
     try {
       await api.put(`/api/parcels/${parcel.id}/release`, { collected_by_name: name.trim() });
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not hand that over');
+      toast.error(error.response?.data?.message || 'Could not hand that over');
     }
   };
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatDay } from '../../lib/money';
 import { Plus, Receipt, Trash2, CheckCircle2, Clock } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -12,6 +13,7 @@ const BLANK = {
 
 /** Every bill the building pays, and the ones it still owes. */
 export default function ExpensesTab({ onAction }) {
+  const { toast, askReason } = useFeedback();
   const [expenses, setExpenses] = useState([]);
   const [totals, setTotals] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -56,7 +58,7 @@ export default function ExpensesTab({ onAction }) {
       onAction('Expense recorded.');
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not record that expense');
+      toast.error(error.response?.data?.message || 'Could not record that expense');
     }
   };
 
@@ -66,27 +68,27 @@ export default function ExpensesTab({ onAction }) {
       onAction(`Marked the ${expense.payee_name} bill as paid.`);
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not update that expense');
+      toast.error(error.response?.data?.message || 'Could not update that expense');
     }
   };
 
   // Removing a bill needs a reason, which is the only explanation the activity
   // log will carry for money disappearing from the ledger.
   const remove = async (expense) => {
-    const reason = window.prompt(`Why is the ${formatRupees(expense.amount)} bill to ${expense.payee_name} being removed?`);
+    const reason = await askReason({
+      title: `Remove the ${formatRupees(expense.amount)} bill to ${expense.payee_name}?`,
+      message: 'This is the only explanation the activity log will carry.',
+      confirmLabel: 'Remove the bill',
+      tone: 'danger'
+    });
     if (reason === null) return;
-
-    if (reason.trim().length < 4) {
-      alert('Record a short reason before removing an expense.');
-      return;
-    }
 
     try {
       await api.delete(`/api/finance/expenses/${expense.id}`, { data: { reason: reason.trim() } });
       onAction('Expense removed.');
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not remove that expense');
+      toast.error(error.response?.data?.message || 'Could not remove that expense');
     }
   };
 

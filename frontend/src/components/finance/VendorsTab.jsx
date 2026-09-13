@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatDay } from '../../lib/money';
 import { Plus, Building, AlertTriangle, Phone, CalendarClock } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -10,6 +11,7 @@ const today = () => new Date().toISOString().slice(0, 10);
  * reason this exists: an AMC that lapses quietly is found out by the lift.
  */
 export default function VendorsTab({ onAction }) {
+  const { toast } = useFeedback();
   const [vendors, setVendors] = useState([]);
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +46,7 @@ export default function VendorsTab({ onAction }) {
       onAction(`${vendorForm.name} added to the registry.`);
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not add that vendor');
+      toast.error(error.response?.data?.message || 'Could not add that vendor');
     }
   };
 
@@ -56,7 +58,7 @@ export default function VendorsTab({ onAction }) {
       onAction('Contract recorded.');
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not record that contract');
+      toast.error(error.response?.data?.message || 'Could not record that contract');
     }
   };
 

@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
 import { formatDay } from '../../lib/money';
+import { useFeedback } from '../../components/common/Feedback';
+import useDialog from '../../components/common/useDialog';
 import {
   ShieldCheck, Plus, X, KeyRound, Copy, Check, Clock,
   Trash2, AlertCircle, Ticket
@@ -17,6 +19,9 @@ const PURPOSES = [
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
 export default function ResidentGate() {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
+  const fieldId = useId();
+  const { toast, confirm } = useFeedback();
   const [passes, setPasses] = useState([]);
   const [visitors, setVisitors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,13 +65,19 @@ export default function ResidentGate() {
   };
 
   const handleCancel = async (pass) => {
-    if (!window.confirm(`Cancel the gate pass for ${pass.visitor_name}?`)) return;
+    const go = await confirm({
+      title: `Cancel the pass for ${pass.visitor_name}?`,
+      message: 'Their code stops working at the gate straight away.',
+      confirmLabel: 'Cancel the pass',
+      tone: 'danger'
+    });
+    if (!go) return;
 
     try {
       await api.delete(`/api/resident/passes/${pass.id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not cancel that pass.');
+      toast.error(err.response?.data?.message || 'Could not cancel that pass.');
     }
   };
 
@@ -237,14 +248,14 @@ export default function ResidentGate() {
 
       {isOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
+          <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
             <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-100 text-indigo-800 rounded-xl">
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-800">Pre-approve a guest</h2>
+                  <h2 id={titleId} className="text-lg font-bold text-slate-800">Pre-approve a guest</h2>
                   <p className="text-xs text-slate-500">They get a code to show at the gate</p>
                 </div>
               </div>
@@ -262,8 +273,8 @@ export default function ResidentGate() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Who is visiting</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-who-is-visiting`}>Who is visiting</label>
+                  <input id={`${fieldId}-who-is-visiting`}
                     type="text" required maxLength={255} placeholder="Full name"
                     value={form.visitor_name}
                     onChange={(e) => setForm({ ...form, visitor_name: e.target.value })}
@@ -271,8 +282,8 @@ export default function ResidentGate() {
                   />
                 </div>
                 <div>
-                  <label className={label}>Expected on</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-expected-on`}>Expected on</label>
+                  <input id={`${fieldId}-expected-on`}
                     type="date" required min={new Date().toISOString().slice(0, 10)}
                     value={form.expected_on}
                     onChange={(e) => setForm({ ...form, expected_on: e.target.value })}
@@ -283,8 +294,8 @@ export default function ResidentGate() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={label}>Their phone</label>
-                  <input
+                  <label className={label} htmlFor={`${fieldId}-their-phone`}>Their phone</label>
+                  <input id={`${fieldId}-their-phone`}
                     type="tel" maxLength={20} placeholder="Optional"
                     value={form.visitor_phone}
                     onChange={(e) => setForm({ ...form, visitor_phone: e.target.value })}
@@ -292,8 +303,8 @@ export default function ResidentGate() {
                   />
                 </div>
                 <div>
-                  <label className={label}>Reason</label>
-                  <select value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} className={field}>
+                  <label className={label} htmlFor={`${fieldId}-reason`}>Reason</label>
+                  <select id={`${fieldId}-reason`} value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} className={field}>
                     {PURPOSES.map((purpose) => (
                       <option key={purpose.value} value={purpose.value}>{purpose.label}</option>
                     ))}
@@ -302,8 +313,8 @@ export default function ResidentGate() {
               </div>
 
               <div>
-                <label className={label}>Vehicle number</label>
-                <input
+                <label className={label} htmlFor={`${fieldId}-vehicle-number`}>Vehicle number</label>
+                <input id={`${fieldId}-vehicle-number`}
                   type="text" maxLength={50} placeholder="Optional, e.g. TN 09 AB 1234"
                   value={form.vehicle_number}
                   onChange={(e) => setForm({ ...form, vehicle_number: e.target.value.toUpperCase() })}

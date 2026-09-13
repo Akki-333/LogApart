@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../lib/api';
 import { Siren, Phone, ShieldAlert, Package } from 'lucide-react';
 import { formatDay } from '../../lib/money';
+import { useFeedback } from '../../components/common/Feedback';
 
 /**
  * The numbers and the button.
@@ -12,6 +13,7 @@ import { formatDay } from '../../lib/money';
  * already on its way when it is not.
  */
 export default function ResidentEmergency() {
+  const { toast, confirm } = useFeedback();
   const [contacts, setContacts] = useState([]);
   const [parcels, setParcels] = useState([]);
   const [detail, setDetail] = useState('');
@@ -29,7 +31,13 @@ export default function ResidentEmergency() {
   }, []);
 
   const raise = async () => {
-    if (!window.confirm('Alert the gate and the building admins now?')) return;
+    const go = await confirm({
+      title: 'Alert the gate now?',
+      message: 'The guard on duty and every building admin are told immediately. This does not call an ambulance.',
+      confirmLabel: 'Alert the gate',
+      tone: 'danger'
+    });
+    if (!go) return;
 
     setSending(true);
     try {
@@ -37,7 +45,7 @@ export default function ResidentEmergency() {
       setBanner(response.data.message);
       setDetail('');
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not raise that alert');
+      toast.error(error.response?.data?.message || 'Could not raise that alert');
     } finally {
       setSending(false);
     }

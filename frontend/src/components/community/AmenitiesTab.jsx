@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees, formatDay } from '../../lib/money';
 import { Plus, CalendarDays, Check, X } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 const shortTime = (value) => String(value).slice(0, 5);
 
 /** What the building lets residents book, and the requests waiting on a yes. */
 export default function AmenitiesTab({ onAction }) {
+  const { toast, askReason } = useFeedback();
   const [amenities, setAmenities] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export default function AmenitiesTab({ onAction }) {
       onAction('Amenity opened for booking.');
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not open that for booking');
+      toast.error(error.response?.data?.message || 'Could not open that for booking');
     }
   };
 
@@ -56,11 +58,12 @@ export default function AmenitiesTab({ onAction }) {
     let note = '';
 
     if (!approve) {
-      note = window.prompt(`Why can home ${booking.unit_number} not have that slot?`) || '';
-      if (note.trim().length < 4) {
-        alert('Say why before refusing.');
-        return;
-      }
+      note = await askReason({
+        title: `Why can home ${booking.unit_number} not have that slot?`,
+        message: 'The resident is told what you write here, and the slot is freed.',
+        confirmLabel: 'Refuse the booking'
+      });
+      if (note === null) return;
     }
 
     try {
@@ -68,7 +71,7 @@ export default function AmenitiesTab({ onAction }) {
       onAction(response.data.message);
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not review that booking');
+      toast.error(error.response?.data?.message || 'Could not review that booking');
     }
   };
 

@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { X, UserCheck, Home, User, Phone, Truck, Car, Bike, Package } from 'lucide-react';
+import useDialog from '../common/useDialog';
 
 export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
+  const fieldId = useId();
   const [formData, setFormData] = useState({
     unit_id: '',
     visitor_name: '',
@@ -51,7 +54,7 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-5 border-b border-slate-100 bg-slate-50">
@@ -60,7 +63,7 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
               <UserCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800">New Gate Entry</h2>
+              <h2 id={titleId} className="text-lg font-bold text-slate-800">New Gate Entry</h2>
               <p className="text-xs text-slate-500">Record visitor, delivery, or cab at the gate</p>
             </div>
           </div>
@@ -76,10 +79,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
           
           {/* 1-Tap Delivery Brand Quick Tags */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1">
+            <span id={`${fieldId}-delivery-tags`} className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1">
               <Package className="w-3.5 h-3.5 text-slate-400" /> Quick Delivery Tags (1-Tap)
-            </label>
-            <div className="flex flex-wrap gap-2">
+            </span>
+            <div className="flex flex-wrap gap-2" role="group" aria-labelledby={`${fieldId}-delivery-tags`}>
               {deliveryBrands.map(b => (
                 <button
                   key={b.name}
@@ -96,10 +99,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
           {/* Visiting Home & Purpose */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1" htmlFor={`${fieldId}-home-classname-w-3-5-h-3-5-t`}>
                 <Home className="w-3.5 h-3.5 text-slate-400" /> Visiting Home *
               </label>
-              <select
+              <select id={`${fieldId}-home-classname-w-3-5-h-3-5-t`}
                 required
                 value={formData.unit_id}
                 onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
@@ -115,10 +118,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5" htmlFor={`${fieldId}-purpose-of-visit`}>
                 Purpose of Visit *
               </label>
-              <select
+              <select id={`${fieldId}-purpose-of-visit`}
                 value={formData.purpose}
                 onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
                 className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm font-semibold text-slate-800 bg-white"
@@ -135,10 +138,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
           {/* Visitor Name & Mobile */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1" htmlFor={`${fieldId}-user-classname-w-3-5-h-3-5-t`}>
                 <User className="w-3.5 h-3.5 text-slate-400" /> Visitor / Driver Name *
               </label>
-              <input
+              <input id={`${fieldId}-user-classname-w-3-5-h-3-5-t`}
                 required
                 type="text"
                 placeholder="e.g. Ramesh Kumar"
@@ -149,10 +152,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1" htmlFor={`${fieldId}-phone-classname-w-3-5-h-3-5-`}>
                 <Phone className="w-3.5 h-3.5 text-slate-400" /> Mobile Number
               </label>
-              <input
+              <input id={`${fieldId}-phone-classname-w-3-5-h-3-5-`}
                 type="tel"
                 placeholder="e.g. 9876543210"
                 value={formData.visitor_phone}
@@ -165,10 +168,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
           {/* Vehicle Type & Number */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5" htmlFor={`${fieldId}-vehicle-type`}>
                 Vehicle Type
               </label>
-              <select
+              <select id={`${fieldId}-vehicle-type`}
                 value={formData.vehicle_type}
                 onChange={(e) => setFormData({ ...formData, vehicle_type: e.target.value })}
                 className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm font-semibold text-slate-800 bg-white"
@@ -182,10 +185,10 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5" htmlFor={`${fieldId}-vehicle-plate-number`}>
                 Vehicle Plate Number
               </label>
-              <input
+              <input id={`${fieldId}-vehicle-plate-number`}
                 type="text"
                 placeholder="e.g. TN 09 AB 1234"
                 value={formData.vehicle_number}

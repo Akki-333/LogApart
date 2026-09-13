@@ -4,6 +4,7 @@ import GenerateDuesModal from '../components/billing/GenerateDuesModal';
 import RecordPaymentModal from '../components/billing/RecordPaymentModal';
 import CollectionActions from '../components/billing/CollectionActions';
 import { formatRupees, formatRupeesShort, formatPeriod, formatDay, currentPeriod } from '../lib/money';
+import { useFeedback } from '../components/common/Feedback';
 import {
   Wallet, Calculator, TrendingUp, AlertCircle, RefreshCw, Trash2,
   IndianRupee, CheckCircle2, Phone, Search, FileText
@@ -31,6 +32,7 @@ const StatusPill = ({ status }) => (
 );
 
 export default function Billing() {
+  const { toast, confirm } = useFeedback();
   const [period, setPeriod] = useState(currentPeriod());
   const [overview, setOverview] = useState(null);
   const [invoices, setInvoices] = useState([]);
@@ -73,16 +75,19 @@ export default function Billing() {
   };
 
   const handleDeleteRun = async (run) => {
-    const confirmed = window.confirm(
-      `Delete the ${formatPeriod(run.period_month)} run and all ${run.units_billed} invoices it raised?`
-    );
+    const confirmed = await confirm({
+      title: `Delete the ${formatPeriod(run.period_month)} run?`,
+      message: `All ${run.units_billed} invoices it raised go with it. Runs with payments recorded against them cannot be deleted.`,
+      confirmLabel: 'Delete the run',
+      tone: 'danger'
+    });
     if (!confirmed) return;
 
     try {
       await api.delete(`/api/billing/runs/${run.id}`);
       announce('Billing run removed.');
     } catch (err) {
-      alert(err.response?.data?.message || 'Could not delete that run.');
+      toast.error(err.response?.data?.message || 'Could not delete that run.');
     }
   };
 

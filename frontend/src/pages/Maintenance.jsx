@@ -5,8 +5,10 @@ import TicketKanban from '../components/maintenance/TicketKanban';
 import TicketConversation from '../components/tickets/TicketConversation';
 import NewTicketModal from '../components/maintenance/NewTicketModal';
 import { Plus } from 'lucide-react';
+import useDialog from '../components/common/useDialog';
 
 export default function Maintenance() {
+  const { dialogRef, dialogProps, titleId } = useDialog(Boolean(openTicket), () => setOpenTicket(null));
   const { token } = useContext(AuthContext);
   const [tickets, setTickets] = useState([]);
   const [units, setUnits] = useState([]); // Needed for the dropdown in modal
@@ -102,10 +104,10 @@ export default function Maintenance() {
 
       {openTicket && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
+          <div ref={dialogRef} {...dialogProps} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 overflow-hidden">
             <div className="flex justify-between items-start px-6 py-5 border-b border-slate-100 bg-slate-50">
               <div>
-                <h2 className="text-base font-bold text-slate-800">{openTicket.title}</h2>
+                <h2 id={titleId} className="text-base font-bold text-slate-800">{openTicket.title}</h2>
                 <p className="text-xs text-slate-500">{openTicket.place || openTicket.location}</p>
               </div>
               <button

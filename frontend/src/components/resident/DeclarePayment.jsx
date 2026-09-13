@@ -2,6 +2,7 @@ import { useState } from 'react';
 import api from '../../lib/api';
 import { formatRupees } from '../../lib/money';
 import { Send, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 const STATUS = {
   PENDING: { icon: Clock, style: 'bg-amber-50 border-amber-200 text-amber-800', label: 'Waiting to be confirmed' },
@@ -17,6 +18,7 @@ const STATUS = {
  * settled when it is not will be surprised by a late fee.
  */
 export default function DeclarePayment({ invoice, onDeclared }) {
+  const { toast } = useFeedback();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     amount: invoice.balance,
@@ -44,7 +46,7 @@ export default function DeclarePayment({ invoice, onDeclared }) {
       setOpen(false);
       onDeclared();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not send that to the building');
+      toast.error(error.response?.data?.message || 'Could not send that to the building');
     } finally {
       setBusy(false);
     }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import { formatRupees } from '../../lib/money';
 import { Target, Save } from 'lucide-react';
+import { useFeedback } from '../common/Feedback';
 
 // April to March. A year is named for the April it began in.
 const financialYears = () => {
@@ -16,6 +17,7 @@ const financialYears = () => {
  * nobody anything, so the bill date is what counts here.
  */
 export default function BudgetTab({ onAction }) {
+  const { toast } = useFeedback();
   const years = financialYears();
   const [year, setYear] = useState(years[1]);
   const [budget, setBudget] = useState(null);
@@ -41,7 +43,7 @@ export default function BudgetTab({ onAction }) {
     const amount = Number(drafts[category]);
 
     if (!Number.isFinite(amount) || amount < 0) {
-      alert('Enter a figure for that line.');
+      toast.error('Enter a figure for that line.');
       return;
     }
 
@@ -50,7 +52,7 @@ export default function BudgetTab({ onAction }) {
       onAction('Budget line saved.');
       load();
     } catch (error) {
-      alert(error.response?.data?.message || 'Could not save that line');
+      toast.error(error.response?.data?.message || 'Could not save that line');
     }
   };
 
