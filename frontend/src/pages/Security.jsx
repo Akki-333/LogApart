@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import api from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import LogVisitorModal from '../components/security/LogVisitorModal';
@@ -7,6 +7,8 @@ import PassLookup from '../components/security/PassLookup';
 import HelperCheckIn from '../components/security/HelperCheckIn';
 import ParcelDesk from '../components/security/ParcelDesk';
 import { useFeedback } from '../components/common/Feedback';
+import { SkeletonRows } from '../components/common/Skeleton';
+import { downloadFile } from '../lib/download';
 import { 
   ShieldCheck, 
   UserCheck, 
@@ -20,7 +22,8 @@ import {
   Bike, 
   Package, 
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 
 export default function Security({ readOnly = false }) {
@@ -42,15 +45,18 @@ export default function Security({ readOnly = false }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState(null);
   const [banner, setBanner] = useState('');
+  const searchRef = useRef(null);
 
   useEffect(() => {
     fetchVisitors();
     fetchUnitsForDropdown();
   }, [token]);
 
-  const fetchVisitors = async () => {
+  // Quiet when refreshing behind an entry already on screen, so the table does
+  // not blank out under the row the guard just added.
+  const fetchVisitors = async ({ quiet = false } = {}) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       const response = await api.get('/api/security/visitors');
       setVisitors(response.data.data || []);
       setNextBeforeId(response.data.next_before_id || null);
@@ -111,13 +117,49 @@ export default function Security({ readOnly = false }) {
     }
   };
 
+  // The row appears the moment the guard presses the button: a queue at the gate
+  // should not wait on the network. If the server refuses, the row goes and the
+  // guard is told why.
   const handleLogVisitor = async (formData) => {
+    const unit = units.find((u) => String(u.unit_id) === String(formData.unit_id));
+    const pendingId = `pending-${Date.now()}`;
+
+    setVisitors((current) => [{
+      ...formData, id: pendingId, pending: true, status: 'ENTERED',
+      entry_time: new Date().toISOString(), exit_time: null, unit_number: unit ? unit.number : ''
+    }, ...current]);
+    setIsLogModalOpen(false);
+
     try {
       await api.post('/api/security/visitors', formData);
-      setIsLogModalOpen(false);
-      fetchVisitors();
+      fetchVisitors({ quiet: true });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Error logging visitor');
+      setVisitors((current) => current.filter((v) => v.id !== pendingId));
+      toast.error(error.response?.data?.message || 'That entry was not saved. Please log it again.');
+    }
+  };
+
+  // N opens a new entry and / jumps to search. Neither fires while typing in a
+  // field or with a dialog open.
+  useEffect(() => {
+    if (readOnly) return undefined;
+    const onKey = (event) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || isLogModalOpen || isEditModalOpen) return;
+      if (event.target.closest && event.target.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+      if (event.key === 'n' || event.key === 'N') { event.preventDefault(); setIsLogModalOpen(true); }
+      if (event.key === '/') { event.preventDefault(); searchRef.current?.focus(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [readOnly, isLogModalOpen, isEditModalOpen]);
+
+  const exportGate = async () => {
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+    try {
+      await downloadFile(`/api/exports/gate.csv?from=${from}&to=${to}`, `logapart-gate-${from}-to-${to}.csv`);
+    } catch {
+      toast.error('Could not export the gate log.');
     }
   };
 
@@ -211,16 +253,27 @@ export default function Security({ readOnly = false }) {
           </button>
 
           {readOnly ? (
-            <div className="px-3.5 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl border border-slate-200">
-              Read-Only Oversight
-            </div>
+            <>
+              <button
+                type="button"
+                onClick={exportGate}
+                className="flex items-center px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:text-teal-700 hover:bg-teal-50 text-xs font-bold rounded-xl"
+              >
+                <Download className="w-4 h-4 mr-1.5" aria-hidden="true" /> Last 30 days as CSV
+              </button>
+              <div className="px-3.5 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-xl border border-slate-200">
+                Read-Only Oversight
+              </div>
+            </>
           ) : (
             <button
               onClick={() => setIsLogModalOpen(true)}
+              aria-keyshortcuts="N"
               className="flex items-center px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
             >
               <UserCheck className="w-4 h-4 mr-2" />
               New Entry
+              <kbd className="ml-2 hidden sm:inline px-1.5 py-0.5 text-[10px] font-mono bg-teal-800/50 rounded">N</kbd>
             </button>
           )}
         </div>
@@ -303,6 +356,8 @@ export default function Security({ readOnly = false }) {
           </div>
           <input
             type="text"
+            ref={searchRef}
+            aria-keyshortcuts="/"
             placeholder="Search by Home # (e.g. A-1), Visitor Name, Phone, Vehicle Number, or Swiggy/Amazon..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -367,11 +422,7 @@ export default function Security({ readOnly = false }) {
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {loading ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-7 w-7 border-b-2 border-teal-600"></div>
-                  </td>
-                </tr>
+                <SkeletonRows rows={6} columns={6} label="Loading gate records" />
               ) : filteredVisitors.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="text-center py-12 text-slate-400 font-semibold">
@@ -380,7 +431,7 @@ export default function Security({ readOnly = false }) {
                 </tr>
               ) : (
                 filteredVisitors.map((v) => (
-                  <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                  <tr key={v.id} className={`hover:bg-slate-50/80 transition-colors ${v.pending ? 'opacity-60' : ''}`} aria-busy={v.pending || undefined}>
                     
                     {/* Visitor Name & Mobile */}
                     <td className="px-6 py-4">
@@ -388,6 +439,7 @@ export default function Security({ readOnly = false }) {
                         <div>
                           <div className="font-extrabold text-slate-900 text-sm flex items-center gap-1.5">
                             {v.visitor_name}
+                            {v.pending && <span className="text-[10px] font-bold text-slate-500">Saving</span>}
                             {v.company && (
                               <span className="text-[10px] font-bold px-2 py-0.5 bg-orange-50 text-orange-700 rounded-md border border-orange-200">
                                 {v.company}
@@ -455,7 +507,7 @@ export default function Security({ readOnly = false }) {
 
                     {/* Actions */}
                     <td className="px-6 py-4 text-right space-x-1.5">
-                      {v.status === 'ENTERED' && !readOnly && (
+                      {v.status === 'ENTERED' && !readOnly && !v.pending && (
                         <button
                           onClick={() => handleCheckout(v.id)}
                           className="inline-flex items-center px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-xs"
@@ -464,7 +516,7 @@ export default function Security({ readOnly = false }) {
                         </button>
                       )}
 
-                      {!readOnly && (
+                      {!readOnly && !v.pending && (
                         <>
                           <button
                             onClick={() => openEditModal(v)}

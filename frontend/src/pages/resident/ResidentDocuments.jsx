@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../lib/api';
 import { formatRupees, formatPeriod, formatDay } from '../../lib/money';
 import { FolderOpen, Receipt, FileCheck2, Megaphone, FileText } from 'lucide-react';
@@ -88,7 +89,7 @@ export default function ResidentDocuments() {
             {tab === 'RECEIPTS' && data.receipts.map((receipt) => (
               <li key={receipt.receipt_number} className="px-5 py-3 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-bold text-slate-800 font-mono">{receipt.receipt_number}</p>
+                  <Link to={`/receipts/${receipt.receipt_number}`} className="text-sm font-bold text-teal-800 font-mono underline decoration-dotted underline-offset-2 hover:text-teal-600">{receipt.receipt_number}</Link>
                   <p className="text-[11px] text-slate-500">
                     {formatPeriod(receipt.period_month)} · {receipt.mode.replace('_', ' ').toLowerCase()}
                     {receipt.reference && ` · ${receipt.reference}`}

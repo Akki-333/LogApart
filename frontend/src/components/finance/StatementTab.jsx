@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
+import { downloadFile } from '../../lib/download';
+import { SkeletonList } from '../common/Skeleton';
 import { formatRupees, formatRupeesShort, formatPeriod, currentPeriod } from '../../lib/money';
 import { Download, TrendingDown, TrendingUp, Wallet, PiggyBank, AlertCircle } from 'lucide-react';
 import { useFeedback } from '../common/Feedback';
@@ -58,19 +60,13 @@ export default function StatementTab() {
   // token. Fetching it as a blob keeps the download inside the signed-in session.
   const downloadCsv = async () => {
     try {
-      const response = await api.get(`/api/finance/statement/export?period=${period}`, { responseType: 'blob' });
-      const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `logapart-${period}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await downloadFile(`/api/finance/statement/export?period=${period}`, `logapart-${period}.csv`);
     } catch (error) {
       toast.error('Could not export that month.');
     }
   };
 
-  if (loading) return <p className="text-sm text-slate-400 py-10 text-center">Reading the books...</p>;
+  if (loading) return <div className="bg-white rounded-2xl border border-slate-200 p-5"><SkeletonList rows={6} label="Reading the books" /></div>;
   if (!statement) return <p className="text-sm text-slate-400 py-10 text-center">Nothing to show for that month.</p>;
 
   const spentTotal = statement.spent;

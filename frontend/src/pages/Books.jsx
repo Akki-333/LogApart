@@ -3,13 +3,15 @@ import StatementTab from '../components/finance/StatementTab';
 import ExpensesTab from '../components/finance/ExpensesTab';
 import VendorsTab from '../components/finance/VendorsTab';
 import BudgetTab from '../components/finance/BudgetTab';
-import { BookOpen, Receipt, Building, Target, CheckCircle2 } from 'lucide-react';
+import MonthEndTab from '../components/finance/MonthEndTab';
+import { BookOpen, Receipt, Building, Target, CheckCircle2, ListChecks } from 'lucide-react';
 
 const TABS = [
   { key: 'STATEMENT', label: 'Statement', icon: BookOpen, blurb: 'What came in, what went out, what is left' },
   { key: 'EXPENSES', label: 'Expenses', icon: Receipt, blurb: 'Every bill the building pays, by category' },
   { key: 'VENDORS', label: 'Vendors', icon: Building, blurb: 'Who is paid, and the contracts that lapse' },
-  { key: 'BUDGET', label: 'Budget', icon: Target, blurb: 'What was planned against what was spent' }
+  { key: 'BUDGET', label: 'Budget', icon: Target, blurb: 'What was planned against what was spent' },
+  { key: 'CLOSE', label: 'Month end', icon: ListChecks, blurb: 'Whether this month is done, read from the work itself' }
 ];
 
 /**
@@ -58,6 +60,7 @@ export default function Books() {
       )}
 
       {tab === 'STATEMENT' && <StatementTab />}
+      {tab === 'CLOSE' && <MonthEndTab onOpenTab={setTab} />}
       {tab === 'EXPENSES' && <ExpensesTab onAction={announce} />}
       {tab === 'VENDORS' && <VendorsTab onAction={announce} />}
       {tab === 'BUDGET' && <BudgetTab onAction={announce} />}

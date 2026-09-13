@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useRef, useEffect } from 'react';
 import { X, UserCheck, Home, User, Phone, Truck, Car, Bike, Package } from 'lucide-react';
 import useDialog from '../common/useDialog';
 
@@ -15,8 +15,25 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
     vehicle_number: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [homeText, setHomeText] = useState('');
+  const homeRef = useRef(null);
+
+  // The home is the one thing every entry needs, so the cursor starts there.
+  // A guard types "a-2" and presses Enter; the mouse is optional.
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const timer = setTimeout(() => homeRef.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const chooseHome = (text) => {
+    setHomeText(text);
+    const match = units?.find((unit) => unit.number.toLowerCase() === text.trim().toLowerCase());
+    setFormData((prev) => ({ ...prev, unit_id: match ? String(match.unit_id) : '' }));
+    homeRef.current?.setCustomValidity(match || !text ? '' : 'Choose a home from the list.');
+  };
 
   const deliveryBrands = [
     { name: 'Swiggy', color: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100' },
@@ -41,6 +58,7 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
     setSubmitting(true);
     await onSubmit(formData);
     setSubmitting(false);
+    setHomeText('');
     setFormData({
       unit_id: '',
       visitor_name: '',
@@ -102,19 +120,21 @@ export default function LogVisitorModal({ isOpen, onClose, onSubmit, units }) {
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1" htmlFor={`${fieldId}-home-classname-w-3-5-h-3-5-t`}>
                 <Home className="w-3.5 h-3.5 text-slate-400" /> Visiting Home *
               </label>
-              <select id={`${fieldId}-home-classname-w-3-5-h-3-5-t`}
+              <input id={`${fieldId}-home-classname-w-3-5-h-3-5-t`}
+                ref={homeRef}
                 required
-                value={formData.unit_id}
-                onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+                list={`${fieldId}-homes`}
+                autoComplete="off"
+                placeholder="Type a home, e.g. A-2"
+                value={homeText}
+                onChange={(e) => chooseHome(e.target.value)}
                 className="w-full border border-slate-300 rounded-xl p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm font-semibold text-slate-800 bg-white"
-              >
-                <option value="">Select Home</option>
-                {units?.map(unit => (
-                  <option key={unit.unit_id} value={unit.unit_id}>
-                    Home {unit.number} (Floor {unit.floor})
-                  </option>
+              />
+              <datalist id={`${fieldId}-homes`}>
+                {units?.map((unit) => (
+                  <option key={unit.unit_id} value={unit.number}>Floor {unit.floor}</option>
                 ))}
-              </select>
+              </datalist>
             </div>
 
             <div>

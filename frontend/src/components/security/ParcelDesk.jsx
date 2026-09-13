@@ -40,7 +40,7 @@ export default function ParcelDesk({ units = [], readOnly = false, dark = false 
         courier: form.courier || null,
         description: form.description || null
       });
-      toast.error(response.data.message);
+      toast.success(response.data.message);
       setForm({ unit_id: '', courier: '', description: '' });
       setIsOpen(false);
       load();

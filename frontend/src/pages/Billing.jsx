@@ -5,9 +5,11 @@ import RecordPaymentModal from '../components/billing/RecordPaymentModal';
 import CollectionActions from '../components/billing/CollectionActions';
 import { formatRupees, formatRupeesShort, formatPeriod, formatDay, currentPeriod } from '../lib/money';
 import { useFeedback } from '../components/common/Feedback';
+import { SkeletonList } from '../components/common/Skeleton';
+import { downloadFile } from '../lib/download';
 import {
   Wallet, Calculator, TrendingUp, AlertCircle, RefreshCw, Trash2,
-  IndianRupee, CheckCircle2, Phone, Search, FileText
+  IndianRupee, CheckCircle2, Phone, Search, FileText, BellRing, Download
 } from 'lucide-react';
 
 const AGING_LABELS = {
@@ -47,6 +49,7 @@ export default function Billing() {
 
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [payingInvoiceId, setPayingInvoiceId] = useState(null);
+  const [remindingUnit, setRemindingUnit] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,6 +109,36 @@ export default function Billing() {
     } finally {
       setLoadingMore(false);
     }
+  };
+
+  // One home at a time from the worklist. The server sends at most one reminder
+  // a day per bill, so a second tap is harmless and says so.
+  const remindHome = async (home) => {
+    setRemindingUnit(home.unit_id);
+    try {
+      const res = await api.post('/api/billing/reminders', { unit_id: home.unit_id });
+      if (res.data.data.reminded > 0) toast.success(`Home ${home.unit_number} reminded.`);
+      else toast.info(res.data.message);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not send that reminder.');
+    } finally {
+      setRemindingUnit(null);
+    }
+  };
+
+  const exportDefaulters = async () => {
+    try {
+      await downloadFile('/api/exports/defaulters.csv', `logapart-defaulters-${new Date().toISOString().slice(0, 10)}.csv`);
+    } catch {
+      toast.error('Could not export the defaulter list.');
+    }
+  };
+
+  const chasedLabel = (home) => {
+    if (home.days_since_reminded === null || home.days_since_reminded === undefined) return 'Never reminded';
+    if (home.days_since_reminded === 0) return 'Reminded today';
+    return `Reminded ${home.days_since_reminded} day${home.days_since_reminded === 1 ? '' : 's'} ago`;
   };
 
   const activeRun = runs.find((r) => String(r.period_month).slice(0, 7) === period);
@@ -243,11 +276,20 @@ export default function Billing() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900">Homes with an open balance</h3>
-              <p className="text-xs text-slate-400">Longest outstanding first</p>
+              <p className="text-xs text-slate-400">Longest outstanding first, and when each was last reminded</p>
             </div>
-            <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full">
-              {overview?.defaulters.length || 0} homes
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={exportDefaulters}
+                className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-teal-700 px-2.5 py-1 border border-slate-200 rounded-full"
+              >
+                <Download className="w-3.5 h-3.5" aria-hidden="true" /> CSV
+              </button>
+              <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-full">
+                {overview?.defaulters.length || 0} homes
+              </span>
+            </div>
           </div>
 
           {!overview?.defaulters.length ? (
@@ -271,11 +313,26 @@ export default function Billing() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-black text-slate-900">{formatRupees(home.balance)}</div>
-                    <div className={`text-[11px] font-semibold ${home.days_overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
-                      {home.days_overdue > 0 ? `${home.days_overdue} days late` : 'Not yet due'}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-sm font-black text-slate-900">{formatRupees(home.balance)}</div>
+                      <div className={`text-[11px] font-semibold ${home.days_overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                        {home.days_overdue > 0 ? `${home.days_overdue} days late` : 'Not yet due'}
+                      </div>
+                      <div className="text-[10px] text-slate-400">{chasedLabel(home)}</div>
                     </div>
+                    {home.days_overdue > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => remindHome(home)}
+                        disabled={remindingUnit === home.unit_id || home.days_since_reminded === 0}
+                        aria-label={`Remind home ${home.unit_number}`}
+                        title={home.days_since_reminded === 0 ? 'Already reminded today' : `Remind home ${home.unit_number}`}
+                        className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-teal-700 hover:bg-teal-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <BellRing className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -335,9 +392,7 @@ export default function Billing() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-teal-600"></div>
-          </div>
+          <div className="p-5"><SkeletonList rows={6} label="Loading invoices" /></div>
         ) : visibleInvoices.length === 0 ? (
           <div className="text-center py-16 px-6">
             <Wallet className="w-8 h-8 mx-auto mb-3 text-slate-300" />

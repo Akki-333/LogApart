@@ -30,6 +30,7 @@ const ResidentHousehold = lazy(() => import('./pages/resident/ResidentHousehold'
 const ResidentPolls = lazy(() => import('./pages/resident/ResidentPolls'));
 const ResidentDocuments = lazy(() => import('./pages/resident/ResidentDocuments'));
 const ResidentEmergency = lazy(() => import('./pages/resident/ResidentEmergency'));
+const ReceiptPage = lazy(() => import('./pages/ReceiptPage'));
 
 const Spinner = ({ dark = false }) => (
   <div className={`h-screen flex items-center justify-center ${dark ? 'bg-slate-900' : 'bg-slate-50'}`}>
@@ -82,6 +83,12 @@ function AppRoutes() {
       <Route
         path="/change-password"
         element={<AuthedRoute><ChangePassword /></AuthedRoute>}
+      />
+
+      {/* Outside every portal layout, so only the receipt reaches the printer. */}
+      <Route
+        path="/receipts/:number"
+        element={<RoleRoute allow={[...ADMIN_ROLES, 'RESIDENT']}>{page(<ReceiptPage />)}</RoleRoute>}
       />
 
       {/* Admin Portal */}

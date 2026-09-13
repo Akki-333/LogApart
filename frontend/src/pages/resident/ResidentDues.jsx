@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../lib/api';
 import { formatRupees, formatPeriod, formatDay } from '../../lib/money';
 import { Wallet, ChevronDown, CheckCircle2, Receipt, AlertCircle } from 'lucide-react';
@@ -176,7 +177,7 @@ export default function ResidentDues() {
                                 </span>
                                 {payment.reference && <span className="text-emerald-600">· {payment.reference}</span>}
                                 {payment.receipt_number && (
-                                  <span className="font-mono text-emerald-600">· {payment.receipt_number}</span>
+                                  <Link to={`/receipts/${payment.receipt_number}`} className="font-mono text-emerald-700 underline decoration-dotted underline-offset-2 hover:text-emerald-900">· {payment.receipt_number}</Link>
                                 )}
                               </span>
                               <span className="text-emerald-700">{formatDay(payment.paid_on)}</span>

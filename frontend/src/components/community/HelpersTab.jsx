@@ -1,7 +1,10 @@
 import { useState, useEffect, useId } from 'react';
+import { downloadFile } from '../../lib/download';
+import { SkeletonList } from '../common/Skeleton';
+import { useFeedback } from '../common/Feedback';
 import api from '../../lib/api';
 
-import { Users, Plus, X, Pencil, Clock, CircleDot } from 'lucide-react';
+import { Users, Plus, X, Pencil, Clock, CircleDot, Download } from 'lucide-react';
 import useDialog from '../common/useDialog';
 
 const TYPES = [
@@ -21,6 +24,7 @@ const EMPTY = {
 };
 
 export default function HelpersTab({ onAction }) {
+  const { toast } = useFeedback();
   const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const fieldId = useId();
   const [helpers, setHelpers] = useState([]);
@@ -99,6 +103,16 @@ export default function HelpersTab({ onAction }) {
     'mt-1 w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors';
   const label = 'block text-xs font-bold uppercase tracking-wider text-slate-500';
 
+  // This month so far, which is what the committee pays helpers against.
+  const exportAttendance = async () => {
+    const month = new Date().toISOString().slice(0, 7);
+    try {
+      await downloadFile(`/api/exports/helper-attendance.csv?month=${month}`, `logapart-helpers-${month}.csv`);
+    } catch {
+      toast.error('Could not export the attendance.');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -106,18 +120,28 @@ export default function HelpersTab({ onAction }) {
           Registered once, then checked in at the gate with one tap. Every home they
           work for is told they have arrived.
         </p>
-        <button
-          onClick={openNew}
-          className="flex items-center px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-xl transition-colors shadow-sm shrink-0 ml-4"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add helper
-        </button>
+        <div className="flex items-center gap-2 shrink-0 ml-4">
+          <button
+            type="button"
+            onClick={exportAttendance}
+            className="flex items-center px-3.5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:text-teal-700 hover:bg-teal-50 text-sm font-bold rounded-xl transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" aria-hidden="true" />
+            Attendance CSV
+          </button>
+          <button
+            onClick={openNew}
+            className="flex items-center px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add helper
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-teal-600"></div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+          <SkeletonList rows={4} label="Loading helpers" />
         </div>
       ) : helpers.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
