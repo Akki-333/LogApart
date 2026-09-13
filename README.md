@@ -90,6 +90,23 @@ is served from.
 
 ---
 
+## 🐳 Running in containers
+
+`docker-compose.yml` at the repository root runs MySQL, the API and the app.
+Put a `.env` beside it with `DB_ROOT_PASSWORD`, `DB_PASSWORD`, `JWT_SECRET`,
+`CORS_ORIGIN` (the public address the app is served from) and `VITE_API_URL`
+(the public address of the API). Compose refuses to start if any is missing.
+
+```bash
+docker compose up -d --build
+docker compose run --rm api node db/migrate.js
+docker compose run --rm api node db/seed.js
+```
+
+The app is served on port 8080 and the API on 5000. The API answers
+`/api/health` while the process is up and `/api/health/ready` once it can reach
+the database, and writes one JSON log line per request with its request id.
+
 ## 🔐 Roles & Access
 
 Authorisation is enforced by the API, not by the interface. Every route below

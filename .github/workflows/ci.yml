@@ -68,6 +68,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm test
 
       # The demo seed is what every suite has been run against locally, so CI
       # gives them the same occupied building rather than twenty empty homes.
@@ -80,7 +81,7 @@ jobs:
         run: |
           node server.js > api.log 2>&1 &
           for attempt in $(seq 1 30); do
-            curl -sf http://localhost:5000/ > /dev/null && exit 0
+            curl -sf http://localhost:5000/api/health/ready > /dev/null && exit 0
             sleep 1
           done
           echo "The API never answered." && cat api.log && exit 1
@@ -95,3 +96,21 @@ jobs:
       - name: API log on failure
         if: failure()
         run: cat api.log
+
+  # Proves both images still build. Nothing is pushed anywhere.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the API image
+        run: docker build -t logapart-api ./backend
+      - name: Build the app image
+        run: docker build --build-arg VITE_API_URL=https://api.example.test -t logapart-web ./frontend
+      - name: The API image starts and answers its health check
+        run: |
+          docker run -d --name api -p 5000:5000             -e NODE_ENV=development -e DB_NAME=none             -e JWT_SECRET=ci-only-secret-that-is-long-enough-to-pass-the-boot-check             logapart-api
+          for attempt in $(seq 1 30); do
+            curl -sf http://localhost:5000/api/health && exit 0
+            sleep 1
+          done
+          docker logs api && exit 1

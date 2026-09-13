@@ -2,10 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const { loadEnv } = require('./src/config/env');
+const db = require('./src/config/db');
+const log = require('./src/services/log');
+const requestLog = require('./src/middleware/requestLog');
 
 const config = loadEnv();
 
 const app = express();
+
+// First, so even a request refused by a later layer leaves a line with an id.
+app.use(requestLog);
 
 // Middleware
 app.use(helmet());
@@ -16,9 +22,26 @@ app.use(cors({ origin: config.corsOrigin, credentials: true }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
-// Health check
 app.get('/', (req, res) => {
   res.json({ message: 'LogApart API is running' });
+});
+
+// Liveness: the process is up and answering. Deliberately touches nothing
+// else, so a database outage restarts nothing that a restart would not fix.
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime_s: Math.round(process.uptime()) });
+});
+
+// Readiness: the process can do its job, which means reaching the database.
+// Outside the rate limiter, because a load balancer asks every few seconds.
+app.get('/api/health/ready', async (req, res) => {
+  try {
+    await db.query('SELECT 1');
+    res.json({ status: 'ready' });
+  } catch (error) {
+    log.error('readiness check failed', { request_id: req.id, error });
+    res.status(503).json({ status: 'unavailable' });
+  }
 });
 
 // Import Routes
@@ -84,17 +107,22 @@ app.use((req, res) => {
 /**
  * The last stop. Express 5 forwards a rejected async handler here, so a bug in
  * a controller returns a clean 500 instead of a hung request. The reference is
- * printed alongside the stack, which is how a report of "it said error 4f2a1c"
- * turns into a line in the log.
+ * the request id, which is how a report of "it said error 3f1c..." turns into
+ * the exact lines in the log.
  */
 app.use((error, req, res, next) => {
-  const reference = Math.random().toString(16).slice(2, 8);
+  const reference = req.id;
 
   if (error.type === 'entity.too.large') {
     return res.status(413).json({ success: false, message: 'That request was too large.' });
   }
 
-  console.error(`[${reference}] ${req.method} ${req.originalUrl}`, error);
+  log.error('unhandled error', {
+    request_id: reference,
+    method: req.method,
+    path: req.originalUrl.split('?')[0],
+    error
+  });
 
   if (res.headersSent) {
     return next(error);
@@ -108,5 +136,5 @@ app.use((error, req, res, next) => {
 });
 
 app.listen(config.port, () => {
-  console.log(`LogApart API listening on port ${config.port}.`);
+  log.info('listening', { port: config.port, production: config.isProduction });
 });

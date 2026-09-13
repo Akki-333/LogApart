@@ -1,8 +1,8 @@
 # LogApart full-stack audit — 13 September 2026
 
-> **Phases 1 and 2 of the remediation were completed on the same day.** The
-> five HIGH findings, plus A-06, A-08 and A-27, carry RESOLVED notes and were
-> re-verified. A-05 is resolved except for a container. Phase 3 remains open.
+> **Phases 1 to 3 of the remediation were completed on the same day.** All five
+> HIGH findings and A-06 to A-09, A-11, A-13, A-15 and A-27 carry RESOLVED
+> notes and were re-verified. Phase 4, polish, remains open.
 
 Evidence-based. Every claim below was measured, executed or read from the
 repository on the date above. Where something could not be tested in this
@@ -811,12 +811,15 @@ Fix:         In order: npm scripts for lint and test, ESLint with the React
 Priority:    5     Complexity: Medium
 ```
 
-**RESOLVED, except the Dockerfile.** ESLint runs in both packages (`npm run
+**RESOLVED.** ESLint runs in both packages (`npm run
 lint`, zero errors and zero warnings; the hooks rules caught one stale
 closure and one undefined variable along the way). `.github/workflows/ci.yml`
 lints and builds the frontend, and on the backend lints, migrates a MySQL
 service container, seeds the demo building, starts the API and runs all four
-suites. A container and deployment configuration remain.
+suites. Phase 3 added a production image for each package, a compose file
+that refuses to start without its secrets, and a CI job that builds both
+images and starts the API one. The images were built in CI only: Docker was
+not running on the audit machine, and the compose file has not been run.
 
 ### A-06 · MEDIUM · Security
 
@@ -850,6 +853,12 @@ Fix:         Three set-based queries with IN clauses, grouped in memory. The
 Priority:    7     Complexity: Low
 ```
 
+**RESOLVED.** Polls read a page in three queries grouped in memory, whatever
+the page size. Late fees and reminders each write their whole batch in two
+statements inside the same transaction; reminder notifications now commit
+with the reminder rows instead of outside the transaction. `verify:life` and
+`verify:finances` pass unchanged.
+
 ### A-08 · MEDIUM · UX
 
 ```
@@ -882,6 +891,15 @@ Fix:         Copy the cursor pattern already implemented correctly in
 Priority:    9     Complexity: Low
 ```
 
+**RESOLVED.** The gate log sends the live list (inside now, passes still to
+use) whole, and pages history on `(time, id)` behind `next_before_id`, 50 at a
+time; the day's counts come from the server. Invoices page on their display
+order behind `next_after_id`, 100 at a time, with the status filter moved into
+SQL so a filtered page is full. Both screens load more on demand. A probe
+walked 120 gate records, 60 of them on three shared timestamps, seven at a
+time: none skipped, none repeated, order held. Walking invoices three at a
+time, filtered and unfiltered, matched a single read exactly.
+
 ### A-10 · MEDIUM · Configuration
 
 ```
@@ -904,11 +922,11 @@ all mandatory, and an origin pointing at localhost is refused outright.
 
 | ID | Sev | Area | Issue |
 | :--- | :--- | :--- | :--- |
-| A-11 | MEDIUM | Frontend | One 561 kB chunk, no code splitting |
+| A-11 | ~~MEDIUM~~ | Frontend | **RESOLVED.** Every portal and page loads on demand; the first download fell from 572 kB to 254 kB (146 to 86 kB gzipped) |
 | A-12 | ~~MEDIUM~~ | Data | **RESOLVED.** One seed, idempotent across three runs, one-time passwords throughout |
-| A-13 | MEDIUM | Testing | No unit tests on `services/billing.js`, the only real arithmetic |
+| A-13 | ~~MEDIUM~~ | Testing | **RESOLVED.** 27 `node:test` cases, run by `npm test` and CI; a deliberately broken copy fails two |
 | A-14 | MEDIUM | Testing | No frontend tests of any kind |
-| A-15 | MEDIUM | Observability | Console logging only, no health or readiness endpoint |
+| A-15 | ~~MEDIUM~~ | Observability | **RESOLVED.** JSON request log with an id on every request, returned as `X-Request-Id` and as the 500 reference; `/api/health` and `/api/health/ready` |
 | A-16 | LOW | Security | `jwt.verify` does not pin `algorithms` |
 | A-17 | LOW | Frontend | Three screens make sequential calls where one `Promise.all` would do |
 | A-18 | LOW | Frontend | No `AbortController`, so unmount mid-request leaves a pending setState |
