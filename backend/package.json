@@ -13,6 +13,7 @@
     "verify:trust": "node scripts/verify-trust-and-audit.js",
     "verify:finances": "node scripts/verify-building-finances.js",
     "verify:life": "node scripts/verify-resident-life.js",
+    "test": "node --test",
     "lint": "eslint ."
   },
   "keywords": [],

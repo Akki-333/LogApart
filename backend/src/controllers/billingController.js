@@ -774,22 +774,26 @@ exports.applyLateFees = async (req, res) => {
 
     const chargeable = lines.filter((line) => !line.already_charged);
 
-    for (const line of chargeable) {
-      await connection.execute(
-        `INSERT INTO invoice_adjustments (invoice_id, kind, amount, reason, created_by_id)
-         VALUES (?, 'LATE_FEE', ?, ?, ?)`,
-        [
+    // Two statements for the whole batch rather than two per invoice. Both sit
+    // inside the transaction, so a failure part-way still charges nobody.
+    if (chargeable.length > 0) {
+      await connection.query(
+        'INSERT INTO invoice_adjustments (invoice_id, kind, amount, reason, created_by_id) VALUES ?',
+        [chargeable.map((line) => [
           line.invoice_id,
+          'LATE_FEE',
           line.fee,
           `${line.days_overdue} days past the due date of ${line.due_date}`,
           req.user.id
-        ]
+        ])]
       );
 
-      // The adjustment row explains the charge. This is the charge.
-      await connection.execute(
-        'UPDATE invoices SET total_amount = total_amount + ? WHERE id = ?',
-        [line.fee, line.invoice_id]
+      // The adjustment rows explain the charge. This is the charge.
+      await connection.query(
+        `UPDATE invoices
+         SET total_amount = total_amount + CASE id ${chargeable.map(() => 'WHEN ? THEN ?').join(' ')} END
+         WHERE id IN (?)`,
+        [...chargeable.flatMap((line) => [line.invoice_id, line.fee]), chargeable.map((line) => line.invoice_id)]
       );
     }
 
@@ -955,23 +959,28 @@ exports.sendReminders = async (req, res) => {
     // list, but sending a notification to no one is not a reminder.
     const reachable = invoices.filter((invoice) => invoice.resident_id);
 
-    for (const invoice of reachable) {
-      const balance = toRupees(toPaise(invoice.total_amount) - toPaise(invoice.amount_paid));
-      const overdue = daysOverdue(invoice);
-
-      await connection.execute(
-        `INSERT INTO dues_reminders (invoice_id, unit_id, sent_by_id, days_overdue)
-         VALUES (?, ?, ?, ?)`,
-        [invoice.id, invoice.unit_id, req.user.id, overdue]
+    // One insert for the reminder record and one for the notifications,
+    // rather than two per home. The notifications now go through the same
+    // transaction, so a home is never recorded as chased without being told.
+    if (reachable.length > 0) {
+      await connection.query(
+        'INSERT INTO dues_reminders (invoice_id, unit_id, sent_by_id, days_overdue) VALUES ?',
+        [reachable.map((invoice) => [invoice.id, invoice.unit_id, req.user.id, daysOverdue(invoice)])]
       );
 
-      await createNotification({
-        title: `Dues pending for home ${invoice.unit_number}`,
-        message: `${balance} is outstanding, ${overdue} days past the due date of ${invoice.due_date}.`,
-        target_role: 'RESIDENT',
-        target_user_id: invoice.resident_id,
-        type: 'BILLING'
-      });
+      await connection.query(
+        'INSERT INTO notifications (title, message, target_role, target_user_id, type) VALUES ?',
+        [reachable.map((invoice) => {
+          const balance = toRupees(toPaise(invoice.total_amount) - toPaise(invoice.amount_paid));
+          return [
+            `Dues pending for home ${invoice.unit_number}`,
+            `${balance} is outstanding, ${daysOverdue(invoice)} days past the due date of ${invoice.due_date}.`,
+            'RESIDENT',
+            invoice.resident_id,
+            'BILLING'
+          ];
+        })]
+      );
     }
 
     await recordAudit(req, {

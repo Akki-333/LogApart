@@ -1,38 +1,50 @@
-import { useContext } from 'react';
+import { useContext, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { FeedbackProvider } from './components/common/Feedback';
 import { homePathFor, ADMIN_ROLES } from './lib/roles';
 
+// Sign-in stays in the first download, because every visit starts there.
+// Everything else loads with the portal that uses it, so a guard at the gate
+// never downloads the finance module and a resident never downloads the desk.
 import Login from './pages/Login';
 import ChangePassword from './pages/ChangePassword';
-import DashboardLayout from './layouts/DashboardLayout';
-import GuardLayout from './layouts/GuardLayout';
-import ResidentLayout from './layouts/ResidentLayout';
-import DashboardHome from './pages/DashboardHome';
-import Residents from './pages/Residents';
-import Maintenance from './pages/Maintenance';
-import Billing from './pages/Billing';
-import Community from './pages/Community';
-import Activity from './pages/Activity';
-import Books from './pages/Books';
-import Security from './pages/Security';
-import ResidentHome from './pages/resident/ResidentHome';
-import ResidentDues from './pages/resident/ResidentDues';
-import ResidentIssues from './pages/resident/ResidentIssues';
-import ResidentGate from './pages/resident/ResidentGate';
-import ResidentNotices from './pages/resident/ResidentNotices';
-import ResidentAmenities from './pages/resident/ResidentAmenities';
-import ResidentHousehold from './pages/resident/ResidentHousehold';
-import ResidentPolls from './pages/resident/ResidentPolls';
-import ResidentDocuments from './pages/resident/ResidentDocuments';
-import ResidentEmergency from './pages/resident/ResidentEmergency';
+const DashboardLayout = lazy(() => import('./layouts/DashboardLayout'));
+const GuardLayout = lazy(() => import('./layouts/GuardLayout'));
+const ResidentLayout = lazy(() => import('./layouts/ResidentLayout'));
+const DashboardHome = lazy(() => import('./pages/DashboardHome'));
+const Residents = lazy(() => import('./pages/Residents'));
+const Maintenance = lazy(() => import('./pages/Maintenance'));
+const Billing = lazy(() => import('./pages/Billing'));
+const Community = lazy(() => import('./pages/Community'));
+const Activity = lazy(() => import('./pages/Activity'));
+const Books = lazy(() => import('./pages/Books'));
+const Security = lazy(() => import('./pages/Security'));
+const ResidentHome = lazy(() => import('./pages/resident/ResidentHome'));
+const ResidentDues = lazy(() => import('./pages/resident/ResidentDues'));
+const ResidentIssues = lazy(() => import('./pages/resident/ResidentIssues'));
+const ResidentGate = lazy(() => import('./pages/resident/ResidentGate'));
+const ResidentNotices = lazy(() => import('./pages/resident/ResidentNotices'));
+const ResidentAmenities = lazy(() => import('./pages/resident/ResidentAmenities'));
+const ResidentHousehold = lazy(() => import('./pages/resident/ResidentHousehold'));
+const ResidentPolls = lazy(() => import('./pages/resident/ResidentPolls'));
+const ResidentDocuments = lazy(() => import('./pages/resident/ResidentDocuments'));
+const ResidentEmergency = lazy(() => import('./pages/resident/ResidentEmergency'));
 
 const Spinner = ({ dark = false }) => (
   <div className={`h-screen flex items-center justify-center ${dark ? 'bg-slate-900' : 'bg-slate-50'}`}>
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
   </div>
 );
+
+// Inside a portal only the content area waits, so the sidebar stays put.
+const PageSpinner = () => (
+  <div className="py-24 flex items-center justify-center" role="status" aria-label="Loading">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600"></div>
+  </div>
+);
+
+const page = (element) => <Suspense fallback={<PageSpinner />}>{element}</Suspense>;
 
 /**
  * Single gate for every protected route. Signed-out users go to the login
@@ -78,15 +90,15 @@ function AppRoutes() {
         element={<RoleRoute allow={ADMIN_ROLES}><DashboardLayout /></RoleRoute>}
       >
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardHome />} />
-        <Route path="residents" element={<Residents />} />
-        <Route path="billing" element={<Billing />} />
-        <Route path="books" element={<Books />} />
-        <Route path="maintenance" element={<Maintenance />} />
-        <Route path="community" element={<Community />} />
-        <Route path="activity" element={<Activity />} />
+        <Route path="dashboard" element={page(<DashboardHome />)} />
+        <Route path="residents" element={page(<Residents />)} />
+        <Route path="billing" element={page(<Billing />)} />
+        <Route path="books" element={page(<Books />)} />
+        <Route path="maintenance" element={page(<Maintenance />)} />
+        <Route path="community" element={page(<Community />)} />
+        <Route path="activity" element={page(<Activity />)} />
         {/* Read-only by design; the API refuses gate writes from an admin. */}
-        <Route path="security" element={<Security readOnly={true} />} />
+        <Route path="security" element={page(<Security readOnly={true} />)} />
       </Route>
 
       {/* Security Guard Portal */}
@@ -95,7 +107,7 @@ function AppRoutes() {
         element={<RoleRoute allow={['SECURITY']} dark><GuardLayout /></RoleRoute>}
       >
         <Route index element={<Navigate to="/guard/gate" replace />} />
-        <Route path="gate" element={<Security readOnly={false} />} />
+        <Route path="gate" element={page(<Security readOnly={false} />)} />
       </Route>
 
       {/* Resident Portal */}
@@ -104,16 +116,16 @@ function AppRoutes() {
         element={<RoleRoute allow={['RESIDENT']}><ResidentLayout /></RoleRoute>}
       >
         <Route index element={<Navigate to="/resident/home" replace />} />
-        <Route path="home" element={<ResidentHome />} />
-        <Route path="dues" element={<ResidentDues />} />
-        <Route path="issues" element={<ResidentIssues />} />
-        <Route path="gate" element={<ResidentGate />} />
-        <Route path="notices" element={<ResidentNotices />} />
-        <Route path="amenities" element={<ResidentAmenities />} />
-        <Route path="household" element={<ResidentHousehold />} />
-        <Route path="polls" element={<ResidentPolls />} />
-        <Route path="documents" element={<ResidentDocuments />} />
-        <Route path="help" element={<ResidentEmergency />} />
+        <Route path="home" element={page(<ResidentHome />)} />
+        <Route path="dues" element={page(<ResidentDues />)} />
+        <Route path="issues" element={page(<ResidentIssues />)} />
+        <Route path="gate" element={page(<ResidentGate />)} />
+        <Route path="notices" element={page(<ResidentNotices />)} />
+        <Route path="amenities" element={page(<ResidentAmenities />)} />
+        <Route path="household" element={page(<ResidentHousehold />)} />
+        <Route path="polls" element={page(<ResidentPolls />)} />
+        <Route path="documents" element={page(<ResidentDocuments />)} />
+        <Route path="help" element={page(<ResidentEmergency />)} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -126,7 +138,9 @@ function App() {
     <FeedbackProvider>
       <AuthProvider>
         <BrowserRouter>
-          <AppRoutes />
+          <Suspense fallback={<Spinner />}>
+            <AppRoutes />
+          </Suspense>
         </BrowserRouter>
       </AuthProvider>
     </FeedbackProvider>

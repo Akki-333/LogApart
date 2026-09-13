@@ -26,23 +26,12 @@ const activeUnitFor = async (userId) => {
   return rows[0] || null;
 };
 
-const tallyFor = async (pollId) => {
-  const [rows] = await db.execute(
-    `SELECT o.id, o.label, o.position, COUNT(v.id) AS votes
-     FROM poll_options o
-     LEFT JOIN poll_votes v ON v.option_id = o.id
-     WHERE o.poll_id = ?
-     GROUP BY o.id
-     ORDER BY o.position ASC, o.id ASC`,
-    [pollId]
-  );
-
-  const total = rows.reduce((sum, row) => sum + Number(row.votes), 0);
+const withShares = (rows) => {
+  const total = rows.reduce((sum, row) => sum + row.votes, 0);
 
   return rows.map((row) => ({
     ...row,
-    votes: Number(row.votes),
-    share: total > 0 ? Math.round((Number(row.votes) / total) * 1000) / 10 : 0
+    share: total > 0 ? Math.round((row.votes / total) * 1000) / 10 : 0
   }));
 };
 
@@ -70,37 +59,56 @@ exports.getPolls = async (req, res) => {
       'SELECT COUNT(*) AS homes FROM units WHERE is_occupied = 1'
     );
 
-    const data = [];
+    // Three set-based reads for the whole page, grouped in memory. The loop
+    // this replaces issued up to three queries per poll, 302 round trips for
+    // a full page, and polls are the screen a whole building opens at once.
+    const ids = polls.map((poll) => poll.id);
+    const optionsByPoll = new Map(ids.map((id) => [id, []]));
+    const tallyByPoll = new Map(ids.map((id) => [id, []]));
+    const ownVoteByPoll = new Map();
 
-    for (const poll of polls) {
-      const closed = Boolean(Number(poll.has_closed));
-      const [options] = await db.execute(
-        'SELECT id, label, position FROM poll_options WHERE poll_id = ? ORDER BY position ASC, id ASC',
-        [poll.id]
+    if (ids.length > 0) {
+      const marks = ids.map(() => '?').join(', ');
+
+      const [optionRows] = await db.execute(
+        `SELECT o.id, o.poll_id, o.label, o.position, COUNT(v.id) AS votes
+         FROM poll_options o
+         LEFT JOIN poll_votes v ON v.option_id = o.id
+         WHERE o.poll_id IN (${marks})
+         GROUP BY o.id
+         ORDER BY o.position ASC, o.id ASC`,
+        ids
       );
 
-      let ownVote = null;
-
-      if (unit) {
-        const [votes] = await db.execute(
-          'SELECT option_id FROM poll_votes WHERE poll_id = ? AND unit_id = ?',
-          [poll.id, unit.unit_id]
-        );
-        ownVote = votes[0]?.option_id ?? null;
+      for (const { poll_id: pollId, votes, ...option } of optionRows) {
+        optionsByPoll.get(pollId).push(option);
+        tallyByPoll.get(pollId).push({ ...option, votes: Number(votes) });
       }
 
-      data.push({
+      if (unit) {
+        const [voteRows] = await db.execute(
+          `SELECT poll_id, option_id FROM poll_votes WHERE unit_id = ? AND poll_id IN (${marks})`,
+          [unit.unit_id, ...ids]
+        );
+        for (const row of voteRows) ownVoteByPoll.set(row.poll_id, row.option_id);
+      }
+    }
+
+    const data = polls.map((poll) => {
+      const closed = Boolean(Number(poll.has_closed));
+
+      return {
         ...poll,
         has_closed: closed,
         votes_cast: Number(poll.votes_cast),
         eligible_homes: Number(population.homes),
-        options,
-        own_vote: ownVote,
+        options: optionsByPoll.get(poll.id),
+        own_vote: ownVoteByPoll.get(poll.id) ?? null,
         // An admin needs the tally to run the meeting. A resident gets it when
         // the poll closes and not a moment before.
-        results: closed || admin ? await tallyFor(poll.id) : null
-      });
-    }
+        results: closed || admin ? withShares(tallyByPoll.get(poll.id)) : null
+      };
+    });
 
     res.json({ success: true, data });
   } catch (error) {
