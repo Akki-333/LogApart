@@ -67,7 +67,7 @@ export default function CollectionActions({ period, onChanged }) {
     setBusy(true);
     try {
       const response = await api.post('/api/billing/late-fees', { ...rule, period });
-      toast.error(response.data.message);
+      toast.success(response.data.message);
       setFeePreview(null);
       onChanged();
     } catch (error) {
@@ -87,7 +87,7 @@ export default function CollectionActions({ period, onChanged }) {
 
     try {
       const response = await api.post('/api/billing/reminders', { period });
-      toast.error(response.data.message);
+      toast.success(response.data.message);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not send those reminders');
     }
