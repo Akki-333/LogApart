@@ -1,8 +1,8 @@
 # LogApart full-stack audit — 13 September 2026
 
-> **Phase 1 of the remediation was completed on the same day.** The five HIGH
-> findings below are resolved and re-verified; each carries a RESOLVED note.
-> Phases 2 and 3 remain open.
+> **Phases 1 and 2 of the remediation were completed on the same day.** The
+> five HIGH findings, plus A-06, A-08 and A-27, carry RESOLVED notes and were
+> re-verified. A-05 is resolved except for a container. Phase 3 remains open.
 
 Evidence-based. Every claim below was measured, executed or read from the
 repository on the date above. Where something could not be tested in this
@@ -790,7 +790,12 @@ Fix:         One accessible Modal shell component (role, aria-modal, focus
 Priority:    4     Complexity: Medium
 ```
 
-**OPEN.** Scheduled for Phase 2.
+**RESOLVED.** `useDialog` gives any overlay `role="dialog"`, `aria-modal`, a
+labelled title, a focus trap, Escape, focus restored on close and a held
+page; `Modal` is a shell over it and all 17 overlays adopted it. Every label
+is bound: 81 by `htmlFor`, 16 by wrapping, 0 orphaned. Labels that named a
+group of buttons became `role="group"` with `aria-labelledby`. Not verified
+with a real screen reader.
 
 ### A-05 · HIGH · Operations
 
@@ -806,7 +811,12 @@ Fix:         In order: npm scripts for lint and test, ESLint with the React
 Priority:    5     Complexity: Medium
 ```
 
-**OPEN.** Scheduled for Phase 2.
+**RESOLVED, except the Dockerfile.** ESLint runs in both packages (`npm run
+lint`, zero errors and zero warnings; the hooks rules caught one stale
+closure and one undefined variable along the way). `.github/workflows/ci.yml`
+lints and builds the frontend, and on the backend lints, migrates a MySQL
+service container, seeds the demo building, starts the API and runs all four
+suites. A container and deployment configuration remain.
 
 ### A-06 · MEDIUM · Security
 
@@ -820,6 +830,12 @@ Fix:         express-rate-limit globally with a higher per-route allowance, or
              a token-bucket keyed on user id.
 Priority:    6     Complexity: Low
 ```
+
+**RESOLVED.** `middleware/rateLimit.js` mounts a standard allowance of 300 a
+minute on every guarded route and on `/api/auth`, keyed per account after
+`protect` so one busy address cannot starve a household. The statement export
+and both previews carry a stricter 20 a minute. Measured: of 400 reads, 300
+pass and 100 return `429 TOO_MANY_REQUESTS`; of 50 exports, 20 pass.
 
 ### A-07 · MEDIUM · Performance
 
@@ -846,6 +862,12 @@ Fix:         A toast component and a small confirm/reason dialog built on the
              accessible modal shell from A-04.
 Priority:    8     Complexity: Medium
 ```
+
+**RESOLVED.** `Feedback.jsx` provides `toast`, `confirm` and `askReason`
+through one provider. Toasts sit in a polite live region, errors as `alert`.
+`confirm` and `askReason` return promises, so callers still read top to
+bottom; `askReason` validates a minimum length inline instead of accepting
+an empty prompt. 0 `alert`, `confirm` or `prompt` calls remain.
 
 ### A-09 · MEDIUM · API design
 
@@ -898,7 +920,7 @@ all mandatory, and an origin pointing at localhost is refused outright.
 | A-24 | LOW | Responsive | Two of seven tables lack an overflow wrapper |
 | A-25 | LOW | Code | `activeUnitFor` duplicated across five controllers |
 | A-26 | LOW | Code | `billingController.js` at 1,177 lines |
-| A-27 | LOW | Deps | 2 moderate backend, 8 frontend advisories |
+| A-27 | ~~LOW~~ | Deps | **RESOLVED.** `npm audit` reports 0 in both packages; Vite 7 and react-router 7 |
 | A-28 | LOW | Docs | No LICENSE, API reference or deployment guide |
 | A-29 | LOW | API | Renaming `flatList` to `homeList` is an unversioned breaking change |
 | A-30 | LOW | UX | Destructive actions vary in ceremony; a parking bay deletes without confirmation |
