@@ -3,6 +3,9 @@ require('dotenv').config();
 
 // Create a connection pool instead of a single connection
 // This helps manage multiple connections efficiently
+// These defaults exist for a developer's first run and nothing else.
+// config/env.js refuses to boot in production without every one of them set,
+// so none of the fallbacks below can ever apply to a real deployment.
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',

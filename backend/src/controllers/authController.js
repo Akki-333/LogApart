@@ -191,3 +191,34 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error updating password' });
   }
 };
+
+/**
+ * Ends this session everywhere.
+ *
+ * Clearing the browser's copy of a token does not stop the token working, and
+ * until now that was all signing out did. On a building's shared office
+ * computer that gap is the whole problem: a token read out of localStorage kept
+ * answering for the rest of the day. Bumping the version is what the column was
+ * added for.
+ *
+ * It signs out every device, not only this one, which is the safer default when
+ * the reason somebody is signing out might be that they no longer trust the
+ * machine they are on.
+ */
+exports.logout = async (req, res) => {
+  try {
+    await db.execute('UPDATE users SET token_version = token_version + 1 WHERE id = ?', [req.user.id]);
+
+    await recordAudit(req, {
+      action: 'SIGN_OUT',
+      entity: 'users',
+      entity_id: req.user.id,
+      summary: `${req.user.name} signed out, ending every session on the account`
+    });
+
+    res.json({ success: true, message: 'Signed out on every device.' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ success: false, message: 'Server error signing out' });
+  }
+};

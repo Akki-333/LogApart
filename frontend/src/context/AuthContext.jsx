@@ -88,10 +88,19 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken('');
-    setUser(null);
+  // Tell the server first, so the token stops working everywhere rather than
+  // only disappearing from this browser. The local state is cleared either way:
+  // a failed request must never leave somebody stuck signed in.
+  const logout = async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch (error) {
+      console.error('Could not end the session on the server', error);
+    } finally {
+      localStorage.removeItem('token');
+      setToken('');
+      setUser(null);
+    }
   };
 
   return (

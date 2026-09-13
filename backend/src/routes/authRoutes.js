@@ -13,6 +13,10 @@ router.post(
   authController.login
 );
 router.get('/me', protect, authController.getMe);
+
+// Deliberately behind protect only, not requirePasswordSet: somebody holding a
+// one-time password they do not want must still be able to end the session.
+router.post('/logout', protect, authController.logout);
 router.post(
   '/change-password',
   protect,

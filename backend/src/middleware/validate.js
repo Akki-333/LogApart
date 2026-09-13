@@ -28,6 +28,34 @@ function checkField(name, value, rule) {
     return rule.required ? `${rule.label || name} is required.` : null;
   }
 
+  // A few fields genuinely are lists, such as the homes a helper works for.
+  // They say so, and then every entry is checked against the same rules.
+  if (rule.isList) {
+    if (!Array.isArray(value)) {
+      return `${rule.label || name} must be a list.`;
+    }
+
+    if (rule.minItems && value.length < rule.minItems) {
+      return `${rule.label || name} needs at least ${rule.minItems}.`;
+    }
+
+    if (rule.maxItems && value.length > rule.maxItems) {
+      return `${rule.label || name} takes at most ${rule.maxItems}.`;
+    }
+
+    const bad = value.find((entry) => rule.of && CHECKS[rule.of] && !CHECKS[rule.of](entry));
+    return bad === undefined ? null : `${rule.label || name} contains something that is not a valid ${rule.of}.`;
+  }
+
+  // A JSON body can carry an array or an object where a field expects a word,
+  // and everything downstream is happy to coerce it: mysql2 turned ["a","b"]
+  // into the string a,b and {a:1} into [object Object], both stored and both
+  // reported to the caller as success. Nothing this API accepts is a structure,
+  // so refuse one before any other rule gets a chance to stringify it.
+  if (typeof value === 'object') {
+    return `${rule.label || name} must be a single value, not a list.`;
+  }
+
   if (rule.type && CHECKS[rule.type] && !CHECKS[rule.type](value)) {
     return `${rule.label || name} must be a valid ${rule.type}.`;
   }

@@ -32,7 +32,12 @@ router.post(
 );
 router.delete('/vehicles/:id', residentOnly, householdController.removeVehicle);
 
-router.put('/directory', residentOnly, householdController.setDirectoryVisibility);
+router.put(
+  '/directory',
+  residentOnly,
+  validate({ show_in_directory: { required: true, type: 'boolean', label: 'Listing' } }),
+  householdController.setDirectoryVisibility
+);
 
 // Neighbours reading neighbours. Residents only, and only those who opted in.
 router.get('/directory', residentOnly, householdController.getDirectory);

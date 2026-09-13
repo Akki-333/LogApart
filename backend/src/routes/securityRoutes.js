@@ -12,7 +12,15 @@ router.get('/visitors', requireRole('ADMIN', 'SECURITY'), securityController.get
 
 // Pre-approved passes raised by residents.
 router.get('/passes/lookup', requireRole('SECURITY'), securityController.findPass);
-router.put('/passes/:id/admit', requireRole('SECURITY'), securityController.admitPass);
+router.put(
+  '/passes/:id/admit',
+  requireRole('SECURITY'),
+  validate({
+    vehicle_number: { type: 'string', maxLength: 50, label: 'Vehicle number' },
+    vehicle_type: { type: 'string', maxLength: 20, label: 'Vehicle type' }
+  }),
+  securityController.admitPass
+);
 
 router.post(
   '/visitors',
@@ -25,7 +33,20 @@ router.post(
   }),
   securityController.logVisitor
 );
-router.put('/visitors/:id', requireRole('SECURITY'), securityController.updateVisitor);
+router.put(
+  '/visitors/:id',
+  requireRole('SECURITY'),
+  validate({
+    visitor_name: { type: 'string', minLength: 2, maxLength: 255, label: 'Visitor name' },
+    visitor_phone: { type: 'string', maxLength: 20, label: 'Phone' },
+    unit_id: { type: 'integer', label: 'Visiting home' },
+    purpose: { oneOf: ['GUEST', 'DELIVERY', 'SERVICE', 'MAID', 'OTHER'], label: 'Purpose' },
+    company: { type: 'string', maxLength: 50, label: 'Company' },
+    vehicle_number: { type: 'string', maxLength: 50, label: 'Vehicle number' },
+    vehicle_type: { type: 'string', maxLength: 20, label: 'Vehicle type' }
+  }),
+  securityController.updateVisitor
+);
 router.put('/visitors/:id/checkout', requireRole('SECURITY'), securityController.checkoutVisitor);
 router.delete(
   '/visitors/:id',

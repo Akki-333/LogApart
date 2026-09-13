@@ -20,6 +20,11 @@ router.delete('/contacts/:id', requireRole('ADMIN'), emergencyController.deleteC
 
 // The button wakes the gate and the admins. It does not dial anyone, and the
 // screen says so.
-router.post('/alert', requireRole('RESIDENT'), emergencyController.raiseAlert);
+router.post(
+  '/alert',
+  requireRole('RESIDENT'),
+  validate({ detail: { type: 'string', maxLength: 200, label: 'What is happening' } }),
+  emergencyController.raiseAlert
+);
 
 module.exports = router;

@@ -10,10 +10,45 @@ const { validate } = require('../middleware/validate');
 router.get('/', requireRole('ADMIN', 'SECURITY'), unitController.getUnits);
 
 // Resident lifecycle is administrative only.
-router.post('/assign', requireRole('ADMIN'), unitController.assignResident);
-router.put('/:unit_id/resident', requireRole('ADMIN'), unitController.updateResident);
+router.post(
+  '/assign',
+  requireRole('ADMIN'),
+  validate({
+    unit_id: { required: true, type: 'integer', label: 'Home' },
+    name: { required: true, type: 'string', minLength: 2, maxLength: 255, label: 'Name' },
+    email: { required: true, type: 'string', maxLength: 255, label: 'Email' },
+    phone: { type: 'string', maxLength: 20, label: 'Phone' },
+    type: { oneOf: ['OWNER', 'TENANT'], label: 'Tenancy' },
+    move_in_date: { type: 'date', label: 'Move-in date' },
+    emergency_contact: { type: 'string', maxLength: 20, label: 'Emergency contact' },
+    area: { type: 'number', min: 0, label: 'Carpet area' }
+  }),
+  unitController.assignResident
+);
+router.put(
+  '/:unit_id/resident',
+  requireRole('ADMIN'),
+  validate({
+    name: { type: 'string', minLength: 2, maxLength: 255, label: 'Name' },
+    phone: { type: 'string', maxLength: 20, label: 'Phone' },
+    emergency_contact: { type: 'string', maxLength: 20, label: 'Emergency contact' },
+    type: { oneOf: ['OWNER', 'TENANT'], label: 'Tenancy' },
+    area: { type: 'number', min: 0, label: 'Carpet area' }
+  }),
+  unitController.updateResident
+);
 router.get('/:unit_id/dues', requireRole('ADMIN'), unitController.getUnitDues);
-router.post('/vacate', requireRole('ADMIN'), unitController.vacateUnit);
+router.post(
+  '/vacate',
+  requireRole('ADMIN'),
+  validate({
+    unit_id: { required: true, type: 'integer', label: 'Home' },
+    move_out_date: { type: 'date', label: 'Move-out date' },
+    waive_dues: { type: 'boolean', label: 'Waiver' },
+    waiver_reason: { type: 'string', maxLength: 255, label: 'Waiver reason' }
+  }),
+  unitController.vacateUnit
+);
 
 // The only password recovery path there is, so it is admin-issued and audited.
 router.post(

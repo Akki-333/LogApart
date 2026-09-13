@@ -24,7 +24,20 @@ router.post(
   }),
   expenseController.createExpense
 );
-router.put('/expenses/:id', adminOnly, expenseController.updateExpense);
+router.put(
+  '/expenses/:id',
+  adminOnly,
+  validate({
+    amount: { type: 'number', min: 0, label: 'Amount' },
+    category: { type: 'string', maxLength: 40, label: 'Category' },
+    fund: { oneOf: ['MAINTENANCE', 'CORPUS'], label: 'Fund' },
+    paid_on: { type: 'date', label: 'Payment date' },
+    mode: { oneOf: ['UPI', 'CASH', 'BANK_TRANSFER', 'CHEQUE', 'OTHER'], label: 'Mode' },
+    reference: { type: 'string', maxLength: 100, label: 'Reference' },
+    note: { type: 'string', maxLength: 255, label: 'Note' }
+  }),
+  expenseController.updateExpense
+);
 router.delete(
   '/expenses/:id',
   adminOnly,
@@ -45,7 +58,20 @@ router.post(
   }),
   vendorController.createVendor
 );
-router.put('/vendors/:id', adminOnly, vendorController.updateVendor);
+router.put(
+  '/vendors/:id',
+  adminOnly,
+  validate({
+    name: { type: 'string', minLength: 2, maxLength: 150, label: 'Vendor name' },
+    service: { type: 'string', maxLength: 100, label: 'Service' },
+    contact_person: { type: 'string', maxLength: 120, label: 'Contact' },
+    phone: { type: 'string', maxLength: 20, label: 'Phone' },
+    email: { type: 'string', maxLength: 255, label: 'Email' },
+    note: { type: 'string', maxLength: 255, label: 'Note' },
+    is_active: { type: 'boolean', label: 'Active' }
+  }),
+  vendorController.updateVendor
+);
 
 router.get('/contracts', adminOnly, vendorController.getContracts);
 router.get('/contracts/expiring', adminOnly, vendorController.getExpiringContracts);
@@ -61,7 +87,18 @@ router.post(
   }),
   vendorController.createContract
 );
-router.put('/contracts/:id', adminOnly, vendorController.updateContract);
+router.put(
+  '/contracts/:id',
+  adminOnly,
+  validate({
+    end_date: { type: 'date', label: 'End date' },
+    amount: { type: 'number', min: 0, label: 'Contract value' },
+    remind_days_before: { type: 'integer', min: 0, max: 365, label: 'Reminder window' },
+    note: { type: 'string', maxLength: 255, label: 'Note' },
+    is_active: { type: 'boolean', label: 'Active' }
+  }),
+  vendorController.updateContract
+);
 
 // The books
 router.get('/statement', adminOnly, financeController.getStatement);

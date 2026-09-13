@@ -33,7 +33,25 @@ router.post(
   }),
   amenityController.createAmenity
 );
-router.put('/:id', requireRole('ADMIN'), amenityController.updateAmenity);
-router.post('/bookings/:id/review', requireRole('ADMIN'), amenityController.reviewBooking);
+router.put(
+  '/:id',
+  requireRole('ADMIN'),
+  validate({
+    charge: { type: 'number', min: 0, label: 'Charge' },
+    slot_hours: { type: 'integer', min: 1, max: 12, label: 'Slot length' },
+    needs_approval: { type: 'boolean', label: 'Needs approval' },
+    is_active: { type: 'boolean', label: 'Active' }
+  }),
+  amenityController.updateAmenity
+);
+router.post(
+  '/bookings/:id/review',
+  requireRole('ADMIN'),
+  validate({
+    approve: { required: true, type: 'boolean', label: 'Decision' },
+    note: { type: 'string', maxLength: 255, label: 'Reason' }
+  }),
+  amenityController.reviewBooking
+);
 
 module.exports = router;

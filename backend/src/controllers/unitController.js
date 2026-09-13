@@ -75,6 +75,29 @@ exports.assignResident = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Unit not found' });
     }
 
+    // A home with somebody living in it has to be vacated properly first.
+    //
+    // Without this, onboarding was a way around the entire move-out control:
+    // vacateUnit refuses while a balance is open, issues a numbered clearance
+    // certificate, bumps the departing token version and closes the account,
+    // and assigning over the top of a sitting resident did none of it. Two
+    // write paths changed occupancy and only one carried the rules.
+    const [sitting] = await connection.execute(
+      `SELECT usr.name
+       FROM residents r JOIN users usr ON r.user_id = usr.id
+       WHERE r.unit_id = ? AND r.is_active = true`,
+      [unit_id]
+    );
+
+    if (sitting.length > 0) {
+      await connection.rollback();
+      return res.status(409).json({
+        success: false,
+        code: 'HOME_OCCUPIED',
+        message: `${sitting[0].name} still lives in home ${unitCheck[0].number}. Move them out first, which settles their dues and issues their clearance certificate.`
+      });
+    }
+
     // Reuse the user record if this person already has one, otherwise mint a
     // resident account with a one-time password.
     let userId;
@@ -95,6 +118,8 @@ exports.assignResident = async (req, res) => {
       userId = newUser.insertId;
     }
 
+    // Nothing active is left by the check above. This clears any stale row a
+    // previous move-out left behind before the new tenancy starts.
     await connection.execute('UPDATE residents SET is_active = false WHERE unit_id = ?', [unit_id]);
 
     const moveDate = move_in_date ? new Date(move_in_date) : new Date();

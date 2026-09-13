@@ -32,10 +32,32 @@ router.post(
 router.get('/documents', residentOnly, residentController.getDocuments);
 
 router.get('/tickets', residentOnly, residentController.getTickets);
-router.post('/tickets', residentOnly, residentController.createTicket);
+router.post(
+  '/tickets',
+  residentOnly,
+  validate({
+    title: { required: true, type: 'string', minLength: 3, maxLength: 255, label: 'Title' },
+    description: { required: true, type: 'string', minLength: 3, maxLength: 2000, label: 'Description' },
+    category: { oneOf: ['PLUMBING', 'ELECTRICAL', 'STRUCTURAL', 'LIFT', 'COMMON', 'OTHER'], label: 'Category' },
+    scope: { oneOf: ['UNIT', 'COMMON'], label: 'Scope' },
+    location: { type: 'string', maxLength: 100, label: 'Location' }
+  }),
+  residentController.createTicket
+);
 router.get('/visitors', residentOnly, residentController.getVisitorLogs);
 router.get('/passes', residentOnly, residentController.getPasses);
-router.post('/passes', residentOnly, residentController.createPass);
+router.post(
+  '/passes',
+  residentOnly,
+  validate({
+    visitor_name: { required: true, type: 'string', minLength: 2, maxLength: 255, label: 'Visitor name' },
+    visitor_phone: { type: 'string', maxLength: 20, label: 'Phone' },
+    vehicle_number: { type: 'string', maxLength: 50, label: 'Vehicle number' },
+    expected_on: { type: 'date', label: 'Expected on' },
+    purpose: { oneOf: ['GUEST', 'DELIVERY', 'SERVICE', 'MAID', 'OTHER'], label: 'Purpose' }
+  }),
+  residentController.createPass
+);
 router.delete('/passes/:id', residentOnly, residentController.cancelPass);
 
 module.exports = router;
