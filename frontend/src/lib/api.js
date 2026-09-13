@@ -53,4 +53,8 @@ api.interceptors.response.use(
   }
 );
 
+// True for a request cancelled on purpose, usually because the screen that
+// asked for it has gone. Not an error anyone needs to hear about.
+export const wasCancelled = (error) => error?.code === 'ERR_CANCELED';
+
 export default api;

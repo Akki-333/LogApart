@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import api, { wasCancelled } from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import { 
   Building2, 
@@ -26,42 +26,48 @@ export default function DashboardHome() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDashboardStats();
-    fetchNotices();
-    fetchRenewals();
+    // One round of requests together, cancelled if the page goes away first, so
+    // a late answer never lands on a screen that is no longer there.
+    const controller = new AbortController();
+    Promise.all([
+      fetchDashboardStats(controller.signal),
+      fetchNotices(controller.signal),
+      fetchRenewals(controller.signal)
+    ]);
+    return () => controller.abort();
   }, [token]);
 
   // A lift AMC lapsing unnoticed is found out by the lift. The committee should
   // hear about it here first.
-  const fetchRenewals = async () => {
+  const fetchRenewals = async (signal) => {
     try {
-      const res = await api.get('/api/finance/contracts/expiring');
+      const res = await api.get('/api/finance/contracts/expiring', { signal });
       setRenewals(res.data.data);
     } catch (err) {
-      console.error('Failed to load contract renewals:', err);
+      if (!wasCancelled(err)) console.error('Failed to load contract renewals:', err);
     }
   };
 
   // The community banner used to be a hardcoded paragraph about water tank
   // cleaning. It now shows whatever notices are actually live.
-  const fetchNotices = async () => {
+  const fetchNotices = async (signal) => {
     try {
-      const res = await api.get('/api/notices');
+      const res = await api.get('/api/notices', { signal });
       setNotices(res.data.data.slice(0, 3));
     } catch (err) {
-      console.error('Failed to load notices:', err);
+      if (!wasCancelled(err)) console.error('Failed to load notices:', err);
     }
   };
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (signal) => {
     try {
       setLoading(true);
-      const res = await api.get('/api/dashboard/stats');
+      const res = await api.get('/api/dashboard/stats', { signal });
       if (res.data.success) {
         setStats(res.data.data);
       }
     } catch (err) {
-      console.error('Failed to load dashboard stats:', err);
+      if (!wasCancelled(err)) console.error('Failed to load dashboard stats:', err);
     } finally {
       setLoading(false);
     }

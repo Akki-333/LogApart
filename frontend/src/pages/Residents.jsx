@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import api from '../lib/api';
+import api, { wasCancelled } from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import BuildingGrid from '../components/residents/BuildingGrid';
 import ResidentsTable from '../components/residents/ResidentsTable';
@@ -47,30 +47,33 @@ export default function Residents() {
   const [newCredentials, setNewCredentials] = useState(null);
 
   useEffect(() => {
-    fetchUnits();
-    fetchBalances();
+    // One round of requests together, cancelled if the page goes away first, so
+    // a late answer never lands on a screen that is no longer there.
+    const controller = new AbortController();
+    Promise.all([fetchUnits(controller.signal), fetchBalances(controller.signal)]);
+    return () => controller.abort();
   }, [token]);
 
-  const fetchUnits = async () => {
+  const fetchUnits = async (signal) => {
     try {
       setLoading(true);
-      const response = await api.get('/api/units');
+      const response = await api.get('/api/units', { signal });
       setUnitsData(response.data.data);
       setHomeList(response.data.homeList || []);
     } catch (error) {
-      console.error('Failed to fetch units', error);
+      if (!wasCancelled(error)) console.error('Failed to fetch units', error);
     } finally {
       setLoading(false);
     }
   };
 
   // Outstanding dues per unit, used to colour the grid in finance mode.
-  const fetchBalances = async () => {
+  const fetchBalances = async (signal) => {
     try {
-      const response = await api.get('/api/billing/unit-balances');
+      const response = await api.get('/api/billing/unit-balances', { signal });
       setBalances(response.data.data || {});
     } catch (error) {
-      console.error('Failed to fetch unit balances', error);
+      if (!wasCancelled(error)) console.error('Failed to fetch unit balances', error);
     }
   };
 

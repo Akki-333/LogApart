@@ -107,6 +107,25 @@ The app is served on port 8080 and the API on 5000. The API answers
 `/api/health` while the process is up and `/api/health/ready` once it can reach
 the database, and writes one JSON log line per request with its request id.
 
+## 🧹 Retention and exports
+
+Gate records name visitors, their phones and their vehicles, so LogApart does
+not keep them forever. `npm run db:retention` in `backend/` shows what the
+policy would remove; `npm run db:retention -- --apply` removes it:
+
+- **Gate records:** past 365 days. A visitor still inside is never removed.
+- **Addresses on activity entries:** cleared after 180 days. The entry itself
+  stays.
+- **Sign-in attempts:** past 30 days.
+
+Set `GATE_LOG_RETENTION_DAYS`, `AUDIT_IP_RETENTION_DAYS` and
+`LOGIN_ATTEMPT_RETENTION_DAYS` to change the periods. Each has a floor, so a
+typo cannot erase a year. Run it from a scheduler once a month.
+
+Admins can download the defaulter list, gate traffic and helper attendance as
+CSV. Every export is recorded in the activity log, and text that a spreadsheet
+would run as a formula is written as plain text.
+
 ## 🔐 Roles & Access
 
 Authorisation is enforced by the API, not by the interface. Every route below

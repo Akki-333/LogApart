@@ -304,9 +304,20 @@ exports.sendReminders = async (req, res) => {
     );
     const remindedToday = new Set(todays.map((row) => row.invoice_id));
 
+    // The join returns a bill once per resident, so a home two people share
+    // came back twice and was recorded as chased twice. Fold it back to one row
+    // per bill: the bill is reminded once, and everyone living there is told.
+    const byBill = new Map();
+    for (const row of invoices) {
+      const bill = byBill.get(row.id) || { ...row, residents: [] };
+      if (row.resident_id) bill.residents.push(row.resident_id);
+      byBill.set(row.id, bill);
+    }
+    const bills = [...byBill.values()];
+
     // A home between tenants has nobody to remind. It stays in the defaulter
     // list, but sending a notification to no one is not a reminder.
-    const withResident = invoices.filter((invoice) => invoice.resident_id);
+    const withResident = bills.filter((bill) => bill.residents.length > 0);
     const reachable = withResident.filter((invoice) => !remindedToday.has(invoice.id));
     const alreadyToday = withResident.length - reachable.length;
 
@@ -321,15 +332,15 @@ exports.sendReminders = async (req, res) => {
 
       await connection.query(
         'INSERT INTO notifications (title, message, target_role, target_user_id, type) VALUES ?',
-        [reachable.map((invoice) => {
+        [reachable.flatMap((invoice) => {
           const balance = toRupees(toPaise(invoice.total_amount) - toPaise(invoice.amount_paid));
-          return [
+          return invoice.residents.map((residentId) => [
             `Dues pending for home ${invoice.unit_number}`,
             `${balance} is outstanding, ${daysOverdue(invoice)} days past the due date of ${invoice.due_date}.`,
             'RESIDENT',
-            invoice.resident_id,
+            residentId,
             'BILLING'
-          ];
+          ]);
         })]
       );
     }
@@ -354,7 +365,7 @@ exports.sendReminders = async (req, res) => {
       data: {
         reminded: reachable.length,
         already_reminded_today: alreadyToday,
-        unreachable: invoices.length - withResident.length
+        unreachable: bills.length - withResident.length
       }
     });
   } catch (error) {

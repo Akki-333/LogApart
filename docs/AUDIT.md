@@ -1,8 +1,9 @@
 # LogApart full-stack audit — 13 September 2026
 
-> **Phases 1 to 3 of the remediation were completed on the same day.** All five
-> HIGH findings and A-06 to A-09, A-11, A-13, A-15 and A-27 carry RESOLVED
-> notes and were re-verified. Phase 4, polish, remains open.
+> **All four phases of the remediation are complete.** Every HIGH and MEDIUM
+> finding except A-14 (no frontend tests) is resolved and re-verified, as are
+> eleven LOW findings. The creative improvements list is built. Still open:
+> A-14, A-17, A-18, A-28 and A-29. See "Status after Phase 4" below.
 
 Evidence-based. Every claim below was measured, executed or read from the
 repository on the date above. Where something could not be tested in this
@@ -668,6 +669,43 @@ Ranked by value to the people who actually use this, not by novelty.
 10. **Export beyond the statement**: defaulters, gate traffic and helper
     attendance as CSV, which is what a committee actually circulates.
 
+### Status after Phase 4
+
+Items 1 and 2 shipped in Phase 2. Items 3 to 10 shipped in Phase 4:
+
+- **Defaulter worklist.** Each home shows when it was last reminded and has its
+  own remind button. A bill is never reminded twice in one day.
+- **Printable receipt** at `/receipts/:number`, outside the portal layouts so
+  only the receipt prints. A resident's request is scoped to their own home: a
+  neighbour's receipt number reads as not found.
+- **Month-end checklist** on the Books screen: dues raised, declarations
+  cleared, expenses recorded, defaulters reminded this week, statement exported.
+  Every tick is derived from records, so none can be set by hand.
+- **Skeleton loaders** on the invoice list, the gate desk, the statement, the
+  helpers list, the week view and the checklist.
+- **Optimistic gate entry.** The row appears on submit and is withdrawn with a
+  message if the server refuses it.
+- **Keyboard-first gate desk.** `N` opens an entry, `/` jumps to search, and the
+  visiting home is typed rather than chosen from a list of twenty.
+- **Amenity week view**, fed by one request for up to fourteen days.
+- **CSV exports** of defaulters, gate traffic (at most a year) and helper
+  attendance by month. Admin only, under the stricter rate limit, and every
+  export writes an activity entry.
+
+Found and fixed along the way:
+- **Success shown as an error.** Three actions (charging late fees, sending
+  reminders, receiving a parcel) reported success in the red error toast, a
+  slip from the Phase 2 conversion.
+- **Formula injection.** The export code quoted cells but did not defuse
+  spreadsheet formulas, so a visitor name typed at the gate could run as one.
+  Such text is now written with a leading apostrophe.
+
+A live probe exercised every new endpoint (24 checks, including the formula
+defusing end to end, receipt scoping and the once-a-day rule), and the retention
+job was run against planted old rows. The screens were checked by lint and a
+production build only. They were **not exercised in a browser**, because the
+browser automation server failed to connect in this session.
+
 ---
 
 ## Quick wins
@@ -927,21 +965,21 @@ all mandatory, and an origin pointing at localhost is refused outright.
 | A-13 | ~~MEDIUM~~ | Testing | **RESOLVED.** 27 `node:test` cases, run by `npm test` and CI; a deliberately broken copy fails two |
 | A-14 | MEDIUM | Testing | No frontend tests of any kind |
 | A-15 | ~~MEDIUM~~ | Observability | **RESOLVED.** JSON request log with an id on every request, returned as `X-Request-Id` and as the 500 reference; `/api/health` and `/api/health/ready` |
-| A-16 | LOW | Security | `jwt.verify` does not pin `algorithms` |
+| A-16 | ~~LOW~~ | Security | **RESOLVED.** HS256 pinned when signing and verifying |
 | A-17 | LOW | Frontend | Three screens make sequential calls where one `Promise.all` would do |
 | A-18 | LOW | Frontend | No `AbortController`, so unmount mid-request leaves a pending setState |
-| A-19 | LOW | Frontend | Notification polling runs every 20s regardless of tab visibility |
-| A-20 | LOW | Database | `payments` table is dead; `MAINTENANCE_STAFF` and `ACCOUNTANT` roles are unreachable |
-| A-21 | LOW | Database | `dues_reminders.unit_id` has no foreign key |
-| A-22 | LOW | Privacy | No retention policy on gate logs or audit IP addresses |
-| A-23 | LOW | State | Signing out in one tab leaves other tabs authenticated |
-| A-24 | LOW | Responsive | Two of seven tables lack an overflow wrapper |
-| A-25 | LOW | Code | `activeUnitFor` duplicated across five controllers |
-| A-26 | LOW | Code | `billingController.js` at 1,177 lines |
+| A-19 | ~~LOW~~ | Frontend | **RESOLVED.** A hidden tab does not poll, and refreshes as soon as it is shown |
+| A-20 | ~~LOW~~ | Database | **RESOLVED.** Migration `013` drops both roles (no account held one). `payments` was already dropped by `002`; only the baseline `schema.sql`, which is never edited, still creates it |
+| A-21 | ~~LOW~~ | Database | **RESOLVED.** Foreign key added in `013` after checking no row was orphaned |
+| A-22 | ~~LOW~~ | Privacy | **RESOLVED.** `npm run db:retention`, dry run by default: gate records past 365 days, audit addresses past 180, sign-in attempts past 30, each with a floor; records itself in the activity log |
+| A-23 | ~~LOW~~ | State | **RESOLVED.** The storage event carries a sign-out to every open tab |
+| A-24 | ~~LOW~~ | Responsive | **RESOLVED.** Three were bare on inspection: parking, helpers and the dues preview |
+| A-25 | ~~LOW~~ | Code | **RESOLVED.** Six copies, in two shapes, replaced by `services/residency.js` |
+| A-26 | ~~LOW~~ | Code | **RESOLVED.** Split into runs, invoices, payments and collections plus shared helpers, largest 363 lines; the old file re-exports so no caller changed |
 | A-27 | ~~LOW~~ | Deps | **RESOLVED.** `npm audit` reports 0 in both packages; Vite 7 and react-router 7 |
 | A-28 | LOW | Docs | No LICENSE, API reference or deployment guide |
 | A-29 | LOW | API | Renaming `flatList` to `homeList` is an unversioned breaking change |
-| A-30 | LOW | UX | Destructive actions vary in ceremony; a parking bay deletes without confirmation |
+| A-30 | ~~LOW~~ | UX | **RESOLVED.** Every destructive action has gone through the confirm dialog since Phase 2, parking bays included |
 
 ---
 
@@ -999,9 +1037,9 @@ test effort belongs.
 
 ### Phase 4 — polish
 
-16. Everything in the creative improvements list.
-17. Split `billingController`, extract the duplicated `activeUnitFor` (A-25, A-26).
-18. Retention policy on gate logs and audit IPs (A-22).
+16. Everything in the creative improvements list. **Done.**
+17. Split `billingController`, extract the duplicated `activeUnitFor` (A-25, A-26). **Done.**
+18. Retention policy on gate logs and audit IPs (A-22). **Done.**
 
 ---
 

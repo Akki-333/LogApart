@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext, useRef } from 'react';
-import api from '../lib/api';
+import api, { wasCancelled } from '../lib/api';
 import { AuthContext } from '../context/AuthContext';
 import LogVisitorModal from '../components/security/LogVisitorModal';
 import EditVisitorModal from '../components/security/EditVisitorModal';
@@ -48,21 +48,24 @@ export default function Security({ readOnly = false }) {
   const searchRef = useRef(null);
 
   useEffect(() => {
-    fetchVisitors();
-    fetchUnitsForDropdown();
+    // One round of requests together, cancelled if the page goes away first, so
+    // a late answer never lands on a screen that is no longer there.
+    const controller = new AbortController();
+    Promise.all([fetchVisitors({ signal: controller.signal }), fetchUnitsForDropdown(controller.signal)]);
+    return () => controller.abort();
   }, [token]);
 
   // Quiet when refreshing behind an entry already on screen, so the table does
   // not blank out under the row the guard just added.
-  const fetchVisitors = async ({ quiet = false } = {}) => {
+  const fetchVisitors = async ({ quiet = false, signal } = {}) => {
     try {
       if (!quiet) setLoading(true);
-      const response = await api.get('/api/security/visitors');
+      const response = await api.get('/api/security/visitors', { signal });
       setVisitors(response.data.data || []);
       setNextBeforeId(response.data.next_before_id || null);
       if (response.data.counts) setCounts(response.data.counts);
     } catch (error) {
-      console.error('Failed to fetch visitors', error);
+      if (!wasCancelled(error)) console.error('Failed to fetch visitors', error);
     } finally {
       setLoading(false);
     }
@@ -87,9 +90,9 @@ export default function Security({ readOnly = false }) {
     }
   };
 
-  const fetchUnitsForDropdown = async () => {
+  const fetchUnitsForDropdown = async (signal) => {
     try {
-      const response = await api.get('/api/units');
+      const response = await api.get('/api/units', { signal });
       const homeUnits = [];
       Object.values(response.data.data).forEach(block => {
         Object.values(block.floors).forEach(floorUnits => {
@@ -98,7 +101,7 @@ export default function Security({ readOnly = false }) {
       });
       setUnits(homeUnits);
     } catch (error) {
-      console.error('Failed to fetch units', error);
+      if (!wasCancelled(error)) console.error('Failed to fetch units', error);
     }
   };
 
