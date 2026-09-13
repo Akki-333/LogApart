@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import api from '../../lib/api';
 import { AuthContext } from '../../context/AuthContext';
 import { Bell, ShieldCheck, Wrench, Check, Megaphone, Clock } from 'lucide-react';
@@ -10,11 +10,24 @@ export default function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  const fetchNotifications = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await api.get('/api/notifications');
+      if (res.data.success) {
+        setNotifications(res.data.data);
+        setUnreadCount(res.data.unreadCount);
+      }
+    } catch (err) {
+      console.error('Error loading notifications:', err);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 20000); // 20s polling for real-time feel
     return () => clearInterval(interval);
-  }, [token]);
+  }, [fetchNotifications]);
 
   // Click outside listener
   useEffect(() => {
@@ -27,18 +40,6 @@ export default function NotificationDropdown() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchNotifications = async () => {
-    if (!token) return;
-    try {
-      const res = await api.get('/api/notifications');
-      if (res.data.success) {
-        setNotifications(res.data.data);
-        setUnreadCount(res.data.unreadCount);
-      }
-    } catch (err) {
-      console.error('Error loading notifications:', err);
-    }
-  };
 
   const handleMarkAsRead = async (id, e) => {
     e.stopPropagation();

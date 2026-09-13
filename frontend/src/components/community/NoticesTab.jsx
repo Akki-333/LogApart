@@ -60,7 +60,7 @@ export default function NoticesTab({ onAction }) {
 
   const togglePublished = async (notice) => {
     try {
-      const res = await api.put(`/api/notices/${notice.id}`, { is_published: !notice.is_published });
+      await api.put(`/api/notices/${notice.id}`, { is_published: !notice.is_published });
       onAction(notice.is_published ? 'Notice taken down.' : 'Notice put back up.');
       load();
     } catch (err) {

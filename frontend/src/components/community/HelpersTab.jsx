@@ -1,6 +1,6 @@
 import { useState, useEffect, useId } from 'react';
 import api from '../../lib/api';
-import { formatDay } from '../../lib/money';
+
 import { Users, Plus, X, Pencil, Clock, CircleDot } from 'lucide-react';
 import useDialog from '../common/useDialog';
 

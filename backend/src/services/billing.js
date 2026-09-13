@@ -162,7 +162,7 @@ function agingBucket(days) {
 function periodToDate(period) {
   if (!/^\d{4}-\d{2}$/.test(String(period || ''))) return null;
 
-  const [year, month] = period.split('-').map(Number);
+  const [, month] = period.split('-').map(Number);
   if (month < 1 || month > 12) return null;
 
   return `${period}-01`;

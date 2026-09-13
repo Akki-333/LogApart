@@ -5,7 +5,6 @@ import { Car, Plus, X, Trash2, AlertTriangle, Check, Repeat } from 'lucide-react
 import { useFeedback } from '../common/Feedback';
 import useDialog from '../common/useDialog';
 
-const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ParkingTab({ onAction }) {
   const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
