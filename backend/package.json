@@ -15,7 +15,8 @@
     "verify:finances": "node scripts/verify-building-finances.js",
     "verify:life": "node scripts/verify-resident-life.js",
     "test": "node --test",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "docs:api": "node scripts/api-reference.js"
   },
   "keywords": [],
   "author": "",

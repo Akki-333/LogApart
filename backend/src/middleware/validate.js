@@ -83,24 +83,31 @@ function checkField(name, value, rule) {
   return null;
 }
 
-const validate = (schema) => (req, res, next) => {
-  const body = req.body || {};
+const validate = (schema) => {
+  const check = (req, res, next) => {
+    const body = req.body || {};
 
-  // Every problem at once. Fixing a form one field per round trip is miserable.
-  const errors = Object.entries(schema)
-    .map(([name, rule]) => checkField(name, body[name], rule))
-    .filter(Boolean);
+    // Every problem at once. Fixing a form one field per round trip is miserable.
+    const errors = Object.entries(schema)
+      .map(([name, rule]) => checkField(name, body[name], rule))
+      .filter(Boolean);
 
-  if (errors.length > 0) {
-    return res.status(400).json({
-      success: false,
-      code: 'INVALID_REQUEST',
-      message: errors[0],
-      errors
-    });
-  }
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        code: 'INVALID_REQUEST',
+        message: errors[0],
+        errors
+      });
+    }
 
-  next();
+    next();
+  };
+
+  // Read by scripts/api-reference.js, so the reference lists the fields.
+  check.schema = schema;
+
+  return check;
 };
 
 module.exports = { validate };

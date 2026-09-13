@@ -93,7 +93,7 @@ const requireRole = (...allowed) => {
     allowed.flatMap((role) => (role === 'ADMIN' ? ADMIN_ROLES : [role]))
   );
 
-  return (req, res, next) => {
+  const guard = (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'Not authorized' });
     }
@@ -107,6 +107,11 @@ const requireRole = (...allowed) => {
 
     next();
   };
+
+  // Read by scripts/api-reference.js, so the reference says who may call a route.
+  guard.roles = allowed;
+
+  return guard;
 };
 
 /**
@@ -127,5 +132,9 @@ const requirePasswordSet = (req, res, next) => {
 };
 
 const isAdminRole = (role) => ADMIN_ROLES.includes(role);
+
+// Read by scripts/api-reference.js: a route carrying protect needs a signed-in user
+// even inside a group that is otherwise open.
+protect.requiresSignIn = true;
 
 module.exports = { protect, requireRole, requirePasswordSet, isAdminRole, ADMIN_ROLES };
