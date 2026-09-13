@@ -139,57 +139,59 @@ export default function ParkingTab({ onAction }) {
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
-                  <th className="px-5 py-3 font-bold">Bay</th>
-                  <th className="px-5 py-3 font-bold">Level</th>
-                  <th className="px-5 py-3 font-bold">Allotted to</th>
-                  <th className="px-5 py-3 font-bold">Registered vehicle</th>
-                  <th className="px-5 py-3 font-bold">Violations</th>
-                  <th className="px-5 py-3 font-bold text-right">Remove</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {bays.map((bay) => (
-                  <tr key={bay.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3 font-black text-slate-800">{bay.bay_number}</td>
-                    <td className="px-5 py-3 text-xs text-slate-500">{bay.level}</td>
-                    <td className="px-5 py-3">
-                      <select
-                        value={bay.unit_id || ''}
-                        onChange={(e) => allot(bay, e.target.value)}
-                        className="text-xs font-semibold bg-slate-100 text-slate-700 border-0 rounded px-2 py-1 cursor-pointer hover:bg-slate-200 outline-none"
-                      >
-                        <option value="">Unallotted</option>
-                        {units.map((unit) => (
-                          <option key={unit.unit_id} value={unit.unit_id}>Home {unit.number}</option>
-                        ))}
-                      </select>
-                      {bay.resident_name && <div className="text-[11px] text-slate-400 mt-0.5">{bay.resident_name}</div>}
-                    </td>
-                    <td className="px-5 py-3 text-xs font-mono font-semibold text-slate-700">
-                      {bay.vehicle_number || <span className="font-sans text-slate-400">Not recorded</span>}
-                    </td>
-                    <td className="px-5 py-3">
-                      {bay.open_violations > 0 ? (
-                        <span className="inline-flex items-center text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          {bay.open_violations} open
-                        </span>
-                      ) : (
-                        <span className="text-[11px] text-slate-400">Clear</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <button onClick={() => removeBay(bay)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+                    <th className="px-5 py-3 font-bold">Bay</th>
+                    <th className="px-5 py-3 font-bold">Level</th>
+                    <th className="px-5 py-3 font-bold">Allotted to</th>
+                    <th className="px-5 py-3 font-bold">Registered vehicle</th>
+                    <th className="px-5 py-3 font-bold">Violations</th>
+                    <th className="px-5 py-3 font-bold text-right">Remove</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {bays.map((bay) => (
+                    <tr key={bay.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-3 font-black text-slate-800">{bay.bay_number}</td>
+                      <td className="px-5 py-3 text-xs text-slate-500">{bay.level}</td>
+                      <td className="px-5 py-3">
+                        <select
+                          value={bay.unit_id || ''}
+                          onChange={(e) => allot(bay, e.target.value)}
+                          className="text-xs font-semibold bg-slate-100 text-slate-700 border-0 rounded px-2 py-1 cursor-pointer hover:bg-slate-200 outline-none"
+                        >
+                          <option value="">Unallotted</option>
+                          {units.map((unit) => (
+                            <option key={unit.unit_id} value={unit.unit_id}>Home {unit.number}</option>
+                          ))}
+                        </select>
+                        {bay.resident_name && <div className="text-[11px] text-slate-400 mt-0.5">{bay.resident_name}</div>}
+                      </td>
+                      <td className="px-5 py-3 text-xs font-mono font-semibold text-slate-700">
+                        {bay.vehicle_number || <span className="font-sans text-slate-400">Not recorded</span>}
+                      </td>
+                      <td className="px-5 py-3">
+                        {bay.open_violations > 0 ? (
+                          <span className="inline-flex items-center text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            {bay.open_violations} open
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">Clear</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <button onClick={() => removeBay(bay)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )
       ) : violations.length === 0 ? (

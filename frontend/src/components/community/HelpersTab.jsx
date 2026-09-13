@@ -130,62 +130,64 @@ export default function HelpersTab({ onAction }) {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
-                <th className="px-5 py-3 font-bold">Name</th>
-                <th className="px-5 py-3 font-bold">Type</th>
-                <th className="px-5 py-3 font-bold">Works for</th>
-                <th className="px-5 py-3 font-bold">Phone</th>
-                <th className="px-5 py-3 font-bold">Right now</th>
-                <th className="px-5 py-3 font-bold text-right">Edit</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {helpers.map((helper) => (
-                <tr key={helper.id} className={`hover:bg-slate-50 transition-colors ${helper.is_active ? '' : 'opacity-50'}`}>
-                  <td className="px-5 py-3">
-                    <div className="font-bold text-slate-800">{helper.name}</div>
-                    {helper.id_proof_number && (
-                      <div className="text-[11px] text-slate-400">
-                        {helper.id_proof_type} {helper.id_proof_number}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider bg-slate-100 text-slate-600 border-slate-200">
-                      {helper.helper_type}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-xs font-semibold text-slate-700">{helper.unit_numbers || 'None'}</td>
-                  <td className="px-5 py-3 text-xs text-slate-500">{helper.phone || 'Not recorded'}</td>
-                  <td className="px-5 py-3">
-                    {!helper.is_active ? (
-                      <span className="text-[11px] font-semibold text-slate-400">Off the registry</span>
-                    ) : helper.is_inside ? (
-                      <span className="inline-flex items-center text-[11px] font-bold text-emerald-700">
-                        <CircleDot className="w-3 h-3 mr-1 animate-pulse" />
-                        Inside since{' '}
-                        {new Date(helper.current_check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Not in today
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => openEdit(helper)}
-                      className="p-2 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-3 font-bold">Name</th>
+                  <th className="px-5 py-3 font-bold">Type</th>
+                  <th className="px-5 py-3 font-bold">Works for</th>
+                  <th className="px-5 py-3 font-bold">Phone</th>
+                  <th className="px-5 py-3 font-bold">Right now</th>
+                  <th className="px-5 py-3 font-bold text-right">Edit</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {helpers.map((helper) => (
+                  <tr key={helper.id} className={`hover:bg-slate-50 transition-colors ${helper.is_active ? '' : 'opacity-50'}`}>
+                    <td className="px-5 py-3">
+                      <div className="font-bold text-slate-800">{helper.name}</div>
+                      {helper.id_proof_number && (
+                        <div className="text-[11px] text-slate-400">
+                          {helper.id_proof_type} {helper.id_proof_number}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider bg-slate-100 text-slate-600 border-slate-200">
+                        {helper.helper_type}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-xs font-semibold text-slate-700">{helper.unit_numbers || 'None'}</td>
+                    <td className="px-5 py-3 text-xs text-slate-500">{helper.phone || 'Not recorded'}</td>
+                    <td className="px-5 py-3">
+                      {!helper.is_active ? (
+                        <span className="text-[11px] font-semibold text-slate-400">Off the registry</span>
+                      ) : helper.is_inside ? (
+                        <span className="inline-flex items-center text-[11px] font-bold text-emerald-700">
+                          <CircleDot className="w-3 h-3 mr-1 animate-pulse" />
+                          Inside since{' '}
+                          {new Date(helper.current_check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Not in today
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <button
+                        onClick={() => openEdit(helper)}
+                        className="p-2 text-slate-400 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { activeHomeFor } = require('../services/residency');
 const { recordAudit } = require('../services/audit');
 const { createNotification } = require('./notificationController');
 const { isAdminRole } = require('../middleware/auth');
@@ -15,17 +16,6 @@ const { isAdminRole } = require('../middleware/auth');
  * the one it announced.
  */
 
-const activeUnitFor = async (userId) => {
-  const [rows] = await db.execute(
-    `SELECT u.id AS unit_id, u.number FROM residents r
-     JOIN units u ON r.unit_id = u.id
-     WHERE r.user_id = ? AND r.is_active = true LIMIT 1`,
-    [userId]
-  );
-
-  return rows[0] || null;
-};
-
 const withShares = (rows) => {
   const total = rows.reduce((sum, row) => sum + row.votes, 0);
 
@@ -40,7 +30,7 @@ exports.getPolls = async (req, res) => {
   const admin = isAdminRole(req.user.role);
 
   try {
-    const unit = admin ? null : await activeUnitFor(req.user.id);
+    const unit = admin ? null : await activeHomeFor(req.user.id);
 
     const [polls] = await db.query(
       `SELECT p.*, usr.name AS created_by,
@@ -122,7 +112,7 @@ exports.vote = async (req, res) => {
   const { option_id: optionId } = req.body;
 
   try {
-    const unit = await activeUnitFor(req.user.id);
+    const unit = await activeHomeFor(req.user.id);
 
     if (!unit) {
       return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a home.' });

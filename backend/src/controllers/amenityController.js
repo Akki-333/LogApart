@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { activeHomeFor } = require('../services/residency');
 const { recordAudit } = require('../services/audit');
 const { createNotification } = require('./notificationController');
 
@@ -157,25 +158,15 @@ exports.updateAmenity = async (req, res) => {
   }
 };
 
-// Every resident endpoint resolves the caller's own home first, exactly as the
-// rest of the resident API does. A unit id from the client is never trusted.
-const activeUnitFor = async (userId) => {
-  const [rows] = await db.execute(
-    `SELECT u.id AS unit_id, u.number
-     FROM residents r JOIN units u ON r.unit_id = u.id
-     WHERE r.user_id = ? AND r.is_active = true LIMIT 1`,
-    [userId]
-  );
-
-  return rows[0] || null;
-};
-
+// Every resident endpoint below resolves the caller's own home first through
+// activeHomeFor, as the rest of the resident API does. A unit id from the
+// client is never trusted.
 /** 4. Book a slot. The unique key decides who got there first. */
 exports.book = async (req, res) => {
   const { amenity_id: amenityId, booking_date: date, starts_at: startsAt, note } = req.body;
 
   try {
-    const unit = await activeUnitFor(req.user.id);
+    const unit = await activeHomeFor(req.user.id);
 
     if (!unit) {
       return res.status(404).json({ success: false, code: 'NO_ACTIVE_UNIT', message: 'You are not listed against a home.' });
@@ -242,7 +233,7 @@ exports.getBookings = async (req, res) => {
     let scope = '';
 
     if (!isAdmin) {
-      const unit = await activeUnitFor(req.user.id);
+      const unit = await activeHomeFor(req.user.id);
 
       if (!unit) {
         return res.json({ success: true, data: [] });
@@ -292,7 +283,7 @@ exports.cancelBooking = async (req, res) => {
     const booking = rows[0];
 
     if (!isAdmin) {
-      const unit = await activeUnitFor(req.user.id);
+      const unit = await activeHomeFor(req.user.id);
 
       if (!unit || unit.unit_id !== booking.unit_id) {
         return res.status(404).json({ success: false, message: 'No such booking.' });

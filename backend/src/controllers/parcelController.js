@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { activeHomeFor } = require('../services/residency');
 const { createNotification } = require('./notificationController');
 const { isAdminRole } = require('../middleware/auth');
 
@@ -9,15 +10,6 @@ const { isAdminRole } = require('../middleware/auth');
  * on a pad. It is recorded against the home, the resident is told, and
  * collection is signed for by name, so "I never got it" has an answer.
  */
-
-const activeUnitFor = async (userId) => {
-  const [rows] = await db.execute(
-    'SELECT unit_id FROM residents WHERE user_id = ? AND is_active = true LIMIT 1',
-    [userId]
-  );
-
-  return rows[0]?.unit_id || null;
-};
 
 const SELECT = `
   SELECT p.*, u.number AS unit_number, u.floor,
@@ -35,7 +27,7 @@ exports.getParcels = async (req, res) => {
     const params = [];
 
     if (req.user.role === 'RESIDENT') {
-      const unitId = await activeUnitFor(req.user.id);
+      const unitId = (await activeHomeFor(req.user.id))?.unit_id ?? null;
 
       if (!unitId) return res.json({ success: true, data: [] });
 

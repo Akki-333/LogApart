@@ -34,7 +34,9 @@ const protect = async (req, res, next) => {
   let claims;
 
   try {
-    claims = jwt.verify(token, process.env.JWT_SECRET);
+    // Pinned, so a token can only ever be checked the way it was signed. An
+    // unpinned verify lets the token's own header choose the algorithm.
+    claims = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
   }

@@ -260,7 +260,7 @@ export default function GenerateDuesModal({ isOpen, onClose, onGenerated }) {
 
               {preview && (
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <div className="max-h-56 overflow-y-auto">
+                  <div className="max-h-56 overflow-auto">
                     <table className="w-full text-xs">
                       <thead className="bg-slate-50 sticky top-0">
                         <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">

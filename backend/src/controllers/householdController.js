@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { activeHomeFor } = require('../services/residency');
 
 /**
  * Who lives in the home, what they drive, and whether they want to be listed.
@@ -8,20 +9,9 @@ const db = require('../config/db');
  * who switched themselves on.
  */
 
-const activeUnitFor = async (userId) => {
-  const [rows] = await db.execute(
-    `SELECT u.id AS unit_id, u.number, r.id AS resident_id, r.show_in_directory, r.emergency_contact
-     FROM residents r JOIN units u ON r.unit_id = u.id
-     WHERE r.user_id = ? AND r.is_active = true LIMIT 1`,
-    [userId]
-  );
-
-  return rows[0] || null;
-};
-
 const withUnit = (handler) => async (req, res) => {
   try {
-    const unit = await activeUnitFor(req.user.id);
+    const unit = await activeHomeFor(req.user.id);
 
     if (!unit) {
       return res.status(404).json({

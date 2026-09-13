@@ -46,6 +46,21 @@ export const AuthProvider = ({ children }) => {
     return () => window.removeEventListener('logapart:password-change-required', onChangeRequired);
   }, []);
 
+  // Signing out, or in as someone else, in one tab reaches every other tab.
+  // The storage event fires only in the tabs that did not make the change.
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key !== 'token' && event.key !== null) return;
+
+      const nextToken = localStorage.getItem('token') || '';
+      setToken(nextToken);
+      if (!nextToken) setUser(null);
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const login = async (email, password) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });

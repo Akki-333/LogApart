@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { activeHomeFor } = require('../services/residency');
 const { createNotification } = require('./notificationController');
 
 /**
@@ -253,12 +254,9 @@ exports.getAttendance = async (req, res) => {
  */
 exports.getMyHelpers = async (req, res) => {
   try {
-    const [unitRows] = await db.execute(
-      'SELECT unit_id FROM residents WHERE user_id = ? AND is_active = true LIMIT 1',
-      [req.user.id]
-    );
+    const home = await activeHomeFor(req.user.id);
 
-    if (unitRows.length === 0) {
+    if (!home) {
       return res.status(404).json({
         success: false,
         code: 'NO_ACTIVE_UNIT',
@@ -279,7 +277,7 @@ exports.getMyHelpers = async (req, res) => {
        ) last_seen ON last_seen.helper_id = h.id
        WHERE hu.unit_id = ? AND h.is_active = 1
        ORDER BY h.name ASC`,
-      [unitRows[0].unit_id]
+      [home.unit_id]
     );
 
     res.json({

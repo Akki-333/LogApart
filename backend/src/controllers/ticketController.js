@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { activeHomeFor } = require('../services/residency');
 const { createNotification } = require('./notificationController');
 const { isAdminRole } = require('../middleware/auth');
 
@@ -149,15 +150,6 @@ exports.placeOf = placeOf;
  */
 const REOPEN_WINDOW_DAYS = 7;
 
-const activeUnitFor = async (userId) => {
-  const [rows] = await db.execute(
-    'SELECT unit_id FROM residents WHERE user_id = ? AND is_active = true LIMIT 1',
-    [userId]
-  );
-
-  return rows[0]?.unit_id || null;
-};
-
 /**
  * The ticket, if this caller is allowed to see it. An admin sees every ticket.
  * A resident sees their own home's and every common-area one, which is the same
@@ -172,7 +164,7 @@ const readableTicket = async (req, ticketId) => {
 
   if (isAdminRole(req.user.role)) return ticket;
 
-  const unitId = await activeUnitFor(req.user.id);
+  const unitId = (await activeHomeFor(req.user.id))?.unit_id ?? null;
 
   if (ticket.scope === 'COMMON') return ticket;
   if (unitId && ticket.unit_id === unitId) return ticket;

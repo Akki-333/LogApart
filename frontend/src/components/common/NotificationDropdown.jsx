@@ -23,10 +23,22 @@ export default function NotificationDropdown() {
     }
   }, [token]);
 
+  // Every twenty seconds while the tab is in view, and at once when it comes
+  // back. A tab left open in the background asks nothing: that is load on the
+  // API with nobody reading the answer.
   useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') fetchNotifications();
+    };
+
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 20000); // 20s polling for real-time feel
-    return () => clearInterval(interval);
+    const interval = setInterval(refreshIfVisible, 20000);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
   }, [fetchNotifications]);
 
   // Click outside listener

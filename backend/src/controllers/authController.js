@@ -26,7 +26,7 @@ const signToken = (user) =>
       tv: Number(user.token_version || 0)
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
+    { algorithm: 'HS256', expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
   );
 
 exports.login = async (req, res) => {
