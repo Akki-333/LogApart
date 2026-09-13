@@ -25,12 +25,12 @@ const EMPTY = {
 
 export default function HelpersTab({ onAction }) {
   const { toast } = useFeedback();
-  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const fieldId = useId();
   const [helpers, setHelpers] = useState([]);
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);

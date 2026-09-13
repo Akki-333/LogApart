@@ -7,7 +7,6 @@ import useDialog from '../common/useDialog';
 
 
 export default function ParkingTab({ onAction }) {
-  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const fieldId = useId();
   const { toast, confirm } = useFeedback();
   const [bays, setBays] = useState([]);
@@ -16,6 +15,7 @@ export default function ParkingTab({ onAction }) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('BAYS');
   const [isOpen, setIsOpen] = useState(false);
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const [form, setForm] = useState({ bay_number: '', level: 'Ground', unit_id: '', vehicle_number: '', notes: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

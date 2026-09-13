@@ -18,6 +18,9 @@ export default [
     },
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     rules: {
+      // Reading a const above its declaration throws on render, and neither the
+      // build nor the hooks rules notice. Seven screens shipped crashing that way.
+      'no-use-before-define': ['error', { functions: false, classes: true, variables: false }],
       ...js.configs.recommended.rules,
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',

@@ -19,7 +19,6 @@ const PURPOSES = [
 const tomorrow = () => new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
 export default function ResidentGate() {
-  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const fieldId = useId();
   const { toast, confirm } = useFeedback();
   const [passes, setPasses] = useState([]);
@@ -27,6 +26,7 @@ export default function ResidentGate() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('PASSES');
   const [isOpen, setIsOpen] = useState(false);
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const [form, setForm] = useState({ visitor_name: '', visitor_phone: '', purpose: 'GUEST', vehicle_number: '', expected_on: tomorrow() });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');

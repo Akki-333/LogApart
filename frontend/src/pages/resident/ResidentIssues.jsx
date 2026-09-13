@@ -23,13 +23,13 @@ const STATUS_STYLES = {
 };
 
 export default function ResidentIssues() {
-  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const fieldId = useId();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [banner, setBanner] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const [form, setForm] = useState({ scope: 'COMMON', location: '', title: '', description: '', category: 'PLUMBING' });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');

@@ -17,12 +17,12 @@ const toneFor = (category) => CATEGORIES.find((c) => c.value === category)?.tone
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function NoticesTab({ onAction }) {
-  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const fieldId = useId();
   const { toast, confirm } = useFeedback();
   const [notices, setNotices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const [form, setForm] = useState({
     title: '', body: '', category: 'GENERAL', audience: 'ALL', starts_on: today(), ends_on: ''
   });

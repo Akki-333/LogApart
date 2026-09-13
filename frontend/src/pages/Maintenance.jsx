@@ -8,13 +8,13 @@ import { Plus } from 'lucide-react';
 import useDialog from '../components/common/useDialog';
 
 export default function Maintenance() {
-  const { dialogRef, dialogProps, titleId } = useDialog(Boolean(openTicket), () => setOpenTicket(null));
   const { token } = useContext(AuthContext);
   const [tickets, setTickets] = useState([]);
   const [units, setUnits] = useState([]); // Needed for the dropdown in modal
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openTicket, setOpenTicket] = useState(null);
+  const { dialogRef, dialogProps, titleId } = useDialog(Boolean(openTicket), () => setOpenTicket(null));
 
   useEffect(() => {
     fetchTickets();

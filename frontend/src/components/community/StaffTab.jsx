@@ -16,7 +16,6 @@ const markFor = (status) => MARKS.find((m) => m.value === status);
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function StaffTab({ onAction }) {
-  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const fieldId = useId();
   const { toast } = useFeedback();
   const [period, setPeriod] = useState(currentPeriod());
@@ -25,6 +24,7 @@ export default function StaffTab({ onAction }) {
   const [grid, setGrid] = useState({});
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const { dialogRef, dialogProps, titleId } = useDialog(isOpen, () => setIsOpen(false));
   const [form, setForm] = useState({ name: '', phone: '', role_title: '', monthly_salary: '', joined_on: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
