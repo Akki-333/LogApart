@@ -30,6 +30,7 @@ router.post(
 // Bills, receipts, clearance certificates and notices, gathered rather than
 // stored again.
 router.get('/documents', residentOnly, residentController.getDocuments);
+router.get('/receipts/:number', residentOnly, residentController.getReceipt);
 
 router.get('/tickets', residentOnly, residentController.getTickets);
 router.post(

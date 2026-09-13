@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { sendCsv } = require('../services/csv');
 const { recordAudit } = require('../services/audit');
 const { toPaise, toRupees, periodToDate, financialYear } = require('../services/billing');
 const { CATEGORIES, CATEGORY_LABELS } = require('./expenseController');
@@ -259,13 +260,6 @@ exports.setBudget = async (req, res) => {
   }
 };
 
-// A committee member opens this in a spreadsheet, so the escaping has to hold
-// for a payee called "Sharma & Sons, Electricals".
-const csvCell = (value) => {
-  const text = value === null || value === undefined ? '' : String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-};
-
 /** 5. The month as a spreadsheet, which is how it reaches the notice board. */
 exports.exportStatement = async (req, res) => {
   const period = req.query.period || new Date().toISOString().slice(0, 7);
@@ -311,11 +305,125 @@ exports.exportStatement = async (req, res) => {
       ])
     ];
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="logapart-${period}.csv"`);
-    res.send(rows.map((row) => row.map(csvCell).join(',')).join('\n'));
+    // On the record, and read back by the month-end checklist.
+    await recordAudit(req, {
+      action: 'EXPORT_STATEMENT',
+      entity: 'statement',
+      entity_id: period,
+      summary: `Exported the statement for ${period}`
+    });
+
+    sendCsv(res, `logapart-${period}.csv`, rows);
   } catch (error) {
     console.error('Error exporting the statement:', error);
     res.status(500).json({ success: false, message: 'Server error exporting the statement' });
+  }
+};
+
+/**
+ * 6. Month-end close. The things a committee does every month, on four
+ * different screens, read back as one checklist. Nothing is stored for it:
+ * each step is derived from the records the work itself leaves behind.
+ */
+exports.getClose = async (req, res) => {
+  const period = req.query.period || new Date().toISOString().slice(0, 7);
+  const bounds = monthBounds(period);
+
+  if (!bounds) {
+    return res.status(400).json({ success: false, message: 'Provide the month as YYYY-MM.' });
+  }
+
+  try {
+    const [[raised]] = await db.execute(
+      `SELECT (SELECT COUNT(*) FROM billing_runs WHERE period_month = ?) AS runs,
+              (SELECT COUNT(*) FROM invoices WHERE period_month = ?) AS invoices`,
+      [bounds.start, bounds.start]
+    );
+
+    const [[declared]] = await db.execute(
+      "SELECT COUNT(*) AS pending FROM payment_declarations WHERE status = 'PENDING'"
+    );
+
+    const [[spent]] = await db.execute(
+      'SELECT COUNT(*) AS entries, COALESCE(SUM(amount), 0) AS total FROM expenses WHERE paid_on BETWEEN ? AND ?',
+      [bounds.start, bounds.end]
+    );
+
+    // Homes behind by the end of the month with somebody living there, and
+    // how many of them nobody has reminded in the last week.
+    const [[behind]] = await db.execute(
+      `SELECT COUNT(DISTINCT i.unit_id) AS homes,
+              COUNT(DISTINCT CASE WHEN NOT EXISTS (
+                SELECT 1 FROM dues_reminders d
+                WHERE d.unit_id = i.unit_id AND d.sent_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+              ) THEN i.unit_id END) AS unchased
+       FROM invoices i
+       JOIN residents r ON r.unit_id = i.unit_id AND r.is_active = true
+       WHERE i.status <> 'PAID' AND i.due_date < LEAST(CURDATE(), ?)`,
+      [bounds.end]
+    );
+
+    const [[exported]] = await db.execute(
+      `SELECT DATE_FORMAT(MAX(created_at), '%Y-%m-%d') AS on_day
+       FROM audit_log WHERE action = 'EXPORT_STATEMENT' AND entity_id = ?`,
+      [period]
+    );
+
+    const runs = Number(raised.runs);
+    const pending = Number(declared.pending);
+    const entries = Number(spent.entries);
+    const homesBehind = Number(behind.homes);
+    const unchased = Number(behind.unchased);
+
+    const steps = [
+      {
+        key: 'DUES_RAISED',
+        label: 'Dues raised for the month',
+        done: runs > 0,
+        detail: runs > 0 ? `${raised.invoices} invoices raised` : 'No dues run for this month yet',
+        where: 'billing'
+      },
+      {
+        key: 'DECLARATIONS_REVIEWED',
+        label: 'Payments residents declared are confirmed or refused',
+        done: pending === 0,
+        detail: pending === 0 ? 'Nothing waiting' : `${pending} waiting for a decision`,
+        where: 'billing'
+      },
+      {
+        key: 'EXPENSES_RECORDED',
+        label: "The month's bills are in the expense ledger",
+        done: entries > 0,
+        detail: entries > 0 ? `${entries} expenses recorded` : 'Nothing recorded against this month',
+        amount: Number(spent.total),
+        where: 'books:EXPENSES'
+      },
+      {
+        key: 'DEFAULTERS_CHASED',
+        label: 'Every home behind has been reminded this week',
+        done: unchased === 0,
+        detail: homesBehind === 0
+          ? 'No home is behind'
+          : unchased === 0
+            ? `All ${homesBehind} homes behind were reminded`
+            : `${unchased} of ${homesBehind} homes behind not reminded in the last week`,
+        where: 'billing'
+      },
+      {
+        key: 'STATEMENT_EXPORTED',
+        label: 'Statement exported for the committee',
+        done: Boolean(exported.on_day),
+        detail: exported.on_day ? `Exported on ${exported.on_day}` : 'Not exported yet',
+        where: 'books:STATEMENT'
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: { period, steps, done: steps.filter((step) => step.done).length, total: steps.length }
+    });
+  } catch (error) {
+    console.error('Error building the month-end checklist:', error);
+    res.status(500).json({ success: false, message: 'Server error building the month-end checklist' });
   }
 };

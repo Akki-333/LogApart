@@ -149,6 +149,80 @@ exports.getInvoice = async (req, res) => {
 };
 
 /**
+ * Every home with an unpaid invoice: what it owes, for how long, and when it
+ * was last chased. The collection dashboard and the defaulter export both read
+ * this, so the list a committee prints is the list on screen.
+ *
+ * Outstanding spans every month, not just the one on screen. A home that
+ * skipped March still owes for March while April is being viewed.
+ */
+const openBalancesByHome = async (connection = db) => {
+  const [openRows] = await connection.execute(
+    `SELECT i.id, i.unit_id, i.period_month, i.total_amount, i.amount_paid, i.status, i.due_date,
+            i.maintenance_amount, i.electricity_amount, i.water_amount,
+            u.number AS unit_number, u.floor AS unit_floor,
+            usr.name AS resident_name, usr.phone AS resident_phone
+     FROM invoices i
+     JOIN units u ON i.unit_id = u.id
+     LEFT JOIN users usr ON i.resident_user_id = usr.id
+     WHERE i.status <> 'PAID'
+     ORDER BY i.due_date ASC`
+  );
+
+  const [chased] = await connection.query(
+    `SELECT unit_id, DATE_FORMAT(MAX(sent_at), '%Y-%m-%d %H:%i') AS last_reminded_at,
+            DATEDIFF(CURDATE(), MAX(sent_at)) AS days_since_reminded, COUNT(*) AS times_reminded
+     FROM dues_reminders
+     GROUP BY unit_id`
+  );
+  const chasedByUnit = new Map(chased.map((row) => [row.unit_id, row]));
+
+  const open = openRows.map(decorate);
+  const aging = { CURRENT: 0, DAYS_1_30: 0, DAYS_31_60: 0, DAYS_61_90: 0, DAYS_90_PLUS: 0 };
+  const byUnit = new Map();
+
+  for (const invoice of open) {
+    const bucket = agingBucket(invoice.days_overdue);
+    aging[bucket] = toRupees(toPaise(aging[bucket]) + toPaise(invoice.balance));
+
+    const current = byUnit.get(invoice.unit_id) || {
+      unit_id: invoice.unit_id,
+      unit_number: invoice.unit_number,
+      unit_floor: invoice.unit_floor,
+      resident_name: invoice.resident_name,
+      resident_phone: invoice.resident_phone,
+      balance: 0,
+      open_invoices: 0,
+      oldest_due_date: invoice.due_date,
+      days_overdue: 0
+    };
+
+    current.balance = toRupees(toPaise(current.balance) + toPaise(invoice.balance));
+    current.open_invoices += 1;
+    current.days_overdue = Math.max(current.days_overdue, invoice.days_overdue);
+    byUnit.set(invoice.unit_id, current);
+  }
+
+  const homes = [...byUnit.values()]
+    .map((unit) => {
+      const chase = chasedByUnit.get(unit.unit_id);
+
+      return {
+        ...unit,
+        aging_bucket: agingBucket(unit.days_overdue),
+        last_reminded_at: chase ? chase.last_reminded_at : null,
+        days_since_reminded: chase ? Number(chase.days_since_reminded) : null,
+        times_reminded: chase ? Number(chase.times_reminded) : 0
+      };
+    })
+    .sort((a, b) => b.days_overdue - a.days_overdue || b.balance - a.balance);
+
+  return { open, aging, homes };
+};
+
+exports.openBalancesByHome = openBalancesByHome;
+
+/**
  * 8. The collection dashboard. Billed against collected for a month, plus the
  * defaulter list bucketed by how long each balance has been outstanding.
  */
@@ -173,50 +247,7 @@ exports.getOverview = async (req, res) => {
         )
       : [[{ invoice_count: 0, billed: 0, collected: 0, settled_count: 0 }]];
 
-    // Outstanding spans every month, not just the one on screen. A home that
-    // skipped March still owes for March while April is being viewed.
-    const [openRows] = await db.execute(
-      `SELECT i.id, i.unit_id, i.period_month, i.total_amount, i.amount_paid, i.status, i.due_date,
-              i.maintenance_amount, i.electricity_amount, i.water_amount,
-              u.number AS unit_number, u.floor AS unit_floor,
-              usr.name AS resident_name, usr.phone AS resident_phone
-       FROM invoices i
-       JOIN units u ON i.unit_id = u.id
-       LEFT JOIN users usr ON i.resident_user_id = usr.id
-       WHERE i.status <> 'PAID'
-       ORDER BY i.due_date ASC`
-    );
-
-    const open = openRows.map(decorate);
-
-    const aging = { CURRENT: 0, DAYS_1_30: 0, DAYS_31_60: 0, DAYS_61_90: 0, DAYS_90_PLUS: 0 };
-    const byUnit = new Map();
-
-    for (const invoice of open) {
-      const bucket = agingBucket(invoice.days_overdue);
-      aging[bucket] = toRupees(toPaise(aging[bucket]) + toPaise(invoice.balance));
-
-      const current = byUnit.get(invoice.unit_id) || {
-        unit_id: invoice.unit_id,
-        unit_number: invoice.unit_number,
-        unit_floor: invoice.unit_floor,
-        resident_name: invoice.resident_name,
-        resident_phone: invoice.resident_phone,
-        balance: 0,
-        open_invoices: 0,
-        oldest_due_date: invoice.due_date,
-        days_overdue: 0
-      };
-
-      current.balance = toRupees(toPaise(current.balance) + toPaise(invoice.balance));
-      current.open_invoices += 1;
-      current.days_overdue = Math.max(current.days_overdue, invoice.days_overdue);
-      byUnit.set(invoice.unit_id, current);
-    }
-
-    const defaulters = [...byUnit.values()]
-      .map((unit) => ({ ...unit, aging_bucket: agingBucket(unit.days_overdue) }))
-      .sort((a, b) => b.days_overdue - a.days_overdue || b.balance - a.balance);
+    const { open, aging, homes: defaulters } = await openBalancesByHome();
 
     const month = monthRows[0];
     const billed = Number(month.billed);

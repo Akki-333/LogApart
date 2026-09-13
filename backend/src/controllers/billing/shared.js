@@ -3,6 +3,7 @@
  * the population a run bills, and the one path that settles money against an
  * invoice.
  */
+const db = require('../../config/db');
 const {
   displayStatus,
   daysOverdue,
@@ -116,4 +117,41 @@ const settleInvoice = async (connection, invoice, details) => {
   };
 };
 
-module.exports = { OCCUPIED_UNITS_QUERY, decorate, readConfig, nextReceiptNumber, settleInvoice };
+/**
+ * One receipt, in the shape the printable page needs. Scoped to a home when a
+ * resident asks, so a receipt number guessed from the sequence reads as not
+ * found rather than as somebody else's payment.
+ */
+const RECEIPT_NUMBER = /^RCP-\d{4}-\d{4,}$/;
+
+const readReceipt = async (receiptNumber, unitId = null) => {
+  if (!RECEIPT_NUMBER.test(String(receiptNumber))) return null;
+
+  const [rows] = await db.execute(
+    `SELECT p.receipt_number, p.amount, p.mode, p.reference, p.paid_on,
+            i.id AS invoice_id, i.period_month, i.due_date, i.total_amount, i.amount_paid,
+            u.number AS unit_number, u.floor AS unit_floor,
+            resident.name AS resident_name, recorder.name AS recorded_by
+     FROM payment_records p
+     JOIN invoices i ON p.invoice_id = i.id
+     JOIN units u ON i.unit_id = u.id
+     LEFT JOIN users resident ON i.resident_user_id = resident.id
+     LEFT JOIN users recorder ON p.recorded_by_id = recorder.id
+     WHERE p.receipt_number = ? ${unitId ? 'AND i.unit_id = ?' : ''}`,
+    unitId ? [receiptNumber, unitId] : [receiptNumber]
+  );
+
+  if (rows.length === 0) return null;
+
+  const row = rows[0];
+
+  return {
+    ...row,
+    amount: Number(row.amount),
+    total_amount: Number(row.total_amount),
+    amount_paid: Number(row.amount_paid),
+    balance: toRupees(toPaise(row.total_amount) - toPaise(row.amount_paid))
+  };
+};
+
+module.exports = { OCCUPIED_UNITS_QUERY, decorate, readConfig, nextReceiptNumber, settleInvoice, readReceipt };

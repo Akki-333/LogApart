@@ -64,6 +64,7 @@ const householdRoutes = require('./src/routes/householdRoutes');
 const pollRoutes = require('./src/routes/pollRoutes');
 const parcelRoutes = require('./src/routes/parcelRoutes');
 const emergencyRoutes = require('./src/routes/emergencyRoutes');
+const exportRoutes = require('./src/routes/exportRoutes');
 
 const { protect, requirePasswordSet } = require('./src/middleware/auth');
 const { standard, expensive } = require('./src/middleware/rateLimit');
@@ -99,6 +100,9 @@ app.use('/api/household', guarded, householdRoutes);
 app.use('/api/polls', guarded, pollRoutes);
 app.use('/api/parcels', guarded, parcelRoutes);
 app.use('/api/emergency', guarded, emergencyRoutes);
+// Each export reads a whole list and names people, so it answers to the
+// tighter ceiling as well.
+app.use('/api/exports', guarded, expensive, exportRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

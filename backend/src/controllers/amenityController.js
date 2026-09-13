@@ -47,9 +47,30 @@ exports.getAmenities = async (req, res) => {
   }
 };
 
-/** 2. One day for one amenity: every slot, and who has taken which. */
+const MAX_DAYS = 14;
+
+// A real calendar day, so a typed 2026-02-31 is refused rather than rolled on.
+const isRealDay = (value) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+  !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
+  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+
+const addDays = (day, count) =>
+  new Date(Date.parse(`${day}T00:00:00Z`) + count * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+/**
+ * 2. The slots for one day, or with ?days= for up to a fortnight from that day,
+ * which is what the week view reads in a single request.
+ */
 exports.getAvailability = async (req, res) => {
-  const date = req.query.date || new Date().toISOString().slice(0, 10);
+  const date = String(req.query.date || new Date().toISOString().slice(0, 10));
+  const span = req.query.days ? Math.min(MAX_DAYS, Math.max(1, Math.floor(Number(req.query.days)) || 1)) : 1;
+
+  if (!isRealDay(date)) {
+    return res.status(400).json({ success: false, message: 'Give the date as YYYY-MM-DD.' });
+  }
+
+  const dates = Array.from({ length: span }, (_, index) => addDays(date, index));
 
   try {
     const [amenities] = await db.execute('SELECT * FROM amenities WHERE id = ?', [req.params.id]);
@@ -59,30 +80,38 @@ exports.getAvailability = async (req, res) => {
     }
 
     const [booked] = await db.execute(
-      `SELECT b.starts_at, b.status, u.number AS unit_number
+      `SELECT b.booking_date, b.starts_at, b.status, u.number AS unit_number
        FROM amenity_bookings b
        JOIN units u ON b.unit_id = u.id
-       WHERE b.amenity_id = ? AND b.booking_date = ? AND b.status IN ('PENDING', 'CONFIRMED')`,
-      [req.params.id, date]
+       WHERE b.amenity_id = ? AND b.booking_date BETWEEN ? AND ? AND b.status IN ('PENDING', 'CONFIRMED')`,
+      [req.params.id, dates[0], dates[dates.length - 1]]
     );
 
-    const taken = new Map(booked.map((row) => [String(row.starts_at), row]));
+    const taken = new Map(booked.map((row) => [`${row.booking_date}|${row.starts_at}`, row]));
+    const slots = slotsFor(amenities[0]);
+
+    const days = dates.map((day) => ({
+      date: day,
+      slots: slots.map((slot) => {
+        const holder = taken.get(`${day}|${slot.starts_at}`);
+        return {
+          ...slot,
+          // The home is shown rather than the person, which is what a
+          // neighbour needs to know and all they need to know.
+          taken_by: holder ? `Home ${holder.unit_number}` : null,
+          status: holder ? holder.status : 'FREE'
+        };
+      })
+    }));
 
     res.json({
       success: true,
       data: {
         amenity: { ...amenities[0], charge: Number(amenities[0].charge) },
+        // The single-day shape the booking screen has always read.
         date,
-        slots: slotsFor(amenities[0]).map((slot) => {
-          const holder = taken.get(slot.starts_at);
-          return {
-            ...slot,
-            // The home is shown rather than the person, which is what a
-            // neighbour needs to know and all they need to know.
-            taken_by: holder ? `Home ${holder.unit_number}` : null,
-            status: holder ? holder.status : 'FREE'
-          };
-        })
+        slots: days[0].slots,
+        days
       }
     });
   } catch (error) {

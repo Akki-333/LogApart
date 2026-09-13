@@ -8,7 +8,7 @@ const {
   toRupees
 } = require('../../services/billing');
 const { createNotification } = require('../notificationController');
-const { settleInvoice } = require('./shared');
+const { settleInvoice, readReceipt } = require('./shared');
 
 /**
  * 7. Record money that arrived. LogApart is a ledger, not a payment gateway:
@@ -233,5 +233,21 @@ exports.reviewDeclaration = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error reviewing that declaration' });
   } finally {
     connection.release();
+  }
+};
+
+/** 18. One receipt for printing. Any receipt, since this is the admin side. */
+exports.getReceipt = async (req, res) => {
+  try {
+    const receipt = await readReceipt(req.params.number);
+
+    if (!receipt) {
+      return res.status(404).json({ success: false, message: 'No receipt with that number.' });
+    }
+
+    res.json({ success: true, data: receipt });
+  } catch (error) {
+    console.error('Error reading a receipt:', error);
+    res.status(500).json({ success: false, message: 'Server error reading that receipt' });
   }
 };

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const db = require('../config/db');
+const { readReceipt } = require('./billing/shared');
 const { displayStatus, daysOverdue, toPaise, toRupees } = require('../services/billing');
 const { createNotification } = require('./notificationController');
 
@@ -536,4 +537,18 @@ exports.getDocuments = withUnit(async (req, res, unit) => {
       notices
     }
   });
+});
+
+/**
+ * 12. One of this home's receipts, for printing. A receipt from another home
+ * reads as not found, whatever its number.
+ */
+exports.getReceipt = withUnit(async (req, res, unit) => {
+  const receipt = await readReceipt(req.params.number, unit.unit_id);
+
+  if (!receipt) {
+    return res.status(404).json({ success: false, message: 'No receipt with that number for your home.' });
+  }
+
+  res.json({ success: true, data: receipt });
 });

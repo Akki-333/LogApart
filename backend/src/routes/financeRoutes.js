@@ -103,6 +103,7 @@ router.put(
 // The books
 router.get('/statement', adminOnly, financeController.getStatement);
 router.get('/statement/export', adminOnly, financeController.exportStatement);
+router.get('/close', adminOnly, financeController.getClose);
 router.get('/corpus', adminOnly, financeController.getCorpus);
 router.get('/budget', adminOnly, financeController.getBudget);
 router.post(

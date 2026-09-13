@@ -95,9 +95,15 @@ router.get('/reminders', adminOnly, billingController.getReminderHistory);
 router.post(
   '/reminders',
   adminOnly,
-  validate({ period: { type: 'month', label: 'Billing month' } }),
+  validate({
+    period: { type: 'month', label: 'Billing month' },
+    unit_id: { type: 'integer', min: 1, label: 'Home' }
+  }),
   billingController.sendReminders
 );
+
+// A receipt, in the shape the printable page needs.
+router.get('/receipts/:number', adminOnly, billingController.getReceipt);
 
 // What residents say they have paid.
 router.get('/declarations', adminOnly, billingController.getDeclarations);

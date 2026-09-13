@@ -273,6 +273,12 @@ exports.sendReminders = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Provide the billing month as YYYY-MM.' });
   }
 
+  // One home, from the defaulter worklist, or every home that is behind.
+  const unitId = req.body.unit_id ? Number(req.body.unit_id) : null;
+  const params = [];
+  if (periodMonth) params.push(periodMonth);
+  if (unitId) params.push(unitId);
+
   const connection = await db.getConnection();
 
   try {
@@ -286,13 +292,23 @@ exports.sendReminders = async (req, res) => {
        LEFT JOIN users usr ON r.user_id = usr.id
        WHERE i.status <> 'PAID' AND i.due_date < CURDATE()
          ${periodMonth ? 'AND i.period_month = ?' : ''}
+         ${unitId ? 'AND i.unit_id = ?' : ''}
        ORDER BY i.due_date ASC`,
-      periodMonth ? [periodMonth] : []
+      params
     );
+
+    // Once a day is a reminder; twice is harassment, and a second tap on the
+    // worklist should not become a second notification.
+    const [todays] = await connection.query(
+      'SELECT DISTINCT invoice_id FROM dues_reminders WHERE sent_at >= CURDATE()'
+    );
+    const remindedToday = new Set(todays.map((row) => row.invoice_id));
 
     // A home between tenants has nobody to remind. It stays in the defaulter
     // list, but sending a notification to no one is not a reminder.
-    const reachable = invoices.filter((invoice) => invoice.resident_id);
+    const withResident = invoices.filter((invoice) => invoice.resident_id);
+    const reachable = withResident.filter((invoice) => !remindedToday.has(invoice.id));
+    const alreadyToday = withResident.length - reachable.length;
 
     // One insert for the reminder record and one for the notifications,
     // rather than two per home. The notifications now go through the same
@@ -330,12 +346,15 @@ exports.sendReminders = async (req, res) => {
 
     res.json({
       success: true,
-      message: reachable.length === 0
-        ? 'Nothing to chase. No overdue home has a resident to remind.'
-        : `Reminded ${reachable.length} homes.`,
+      message: reachable.length > 0
+        ? `Sent ${reachable.length} reminder${reachable.length === 1 ? '' : 's'}.`
+        : alreadyToday > 0
+          ? 'Already reminded today. Try again tomorrow.'
+          : 'Nothing to chase. No overdue home has a resident to remind.',
       data: {
         reminded: reachable.length,
-        unreachable: invoices.length - reachable.length
+        already_reminded_today: alreadyToday,
+        unreachable: invoices.length - withResident.length
       }
     });
   } catch (error) {
