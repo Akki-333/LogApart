@@ -43,12 +43,15 @@ const parcelRoutes = require('./src/routes/parcelRoutes');
 const emergencyRoutes = require('./src/routes/emergencyRoutes');
 
 const { protect, requirePasswordSet } = require('./src/middleware/auth');
+const { standard, expensive } = require('./src/middleware/rateLimit');
 
 // Everything except /api/auth is sealed until a one-time password is replaced.
-const guarded = [protect, requirePasswordSet];
+// The limiter runs after protect so it can count per account rather than per
+// address: one busy resident should not throttle the guard on the same router.
+const guarded = [protect, requirePasswordSet, standard];
 
 // Mount Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', standard, authRoutes);
 app.use('/api/units', guarded, unitRoutes);
 app.use('/api/tickets', guarded, ticketRoutes);
 app.use('/api/security', guarded, securityRoutes);
@@ -61,6 +64,12 @@ app.use('/api/notices', guarded, noticeRoutes);
 app.use('/api/parking', guarded, parkingRoutes);
 app.use('/api/staff', guarded, staffRoutes);
 app.use('/api/audit', guarded, auditRoutes);
+// Pricing a run, building a statement and writing the export each do real work
+// per call, so they answer to a tighter ceiling as well as the standard one.
+app.use('/api/finance/statement', guarded, expensive);
+app.use('/api/billing/runs/preview', guarded, expensive);
+app.use('/api/billing/late-fees/preview', guarded, expensive);
+
 app.use('/api/finance', guarded, financeRoutes);
 app.use('/api/amenities', guarded, amenityRoutes);
 app.use('/api/household', guarded, householdRoutes);
