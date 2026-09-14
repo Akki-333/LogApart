@@ -4,19 +4,23 @@ import NoticesTab from '../components/community/NoticesTab';
 import ParkingTab from '../components/community/ParkingTab';
 import StaffTab from '../components/community/StaffTab';
 import AmenitiesTab from '../components/community/AmenitiesTab';
-import { Users, Megaphone, Car, HardHat, CalendarDays, CheckCircle2 } from 'lucide-react';
+import PollsTab from '../components/community/PollsTab';
+import EmergencyTab from '../components/community/EmergencyTab';
+import { Users, Megaphone, Car, HardHat, CalendarDays, CheckCircle2, Vote, LifeBuoy } from 'lucide-react';
 
 const TABS = [
   { key: 'HELPERS', label: 'Daily Helpers', icon: Users, blurb: 'Maids, cooks and drivers who come every day' },
   { key: 'NOTICES', label: 'Notices', icon: Megaphone, blurb: 'Announcements for residents and staff' },
   { key: 'PARKING', label: 'Parking', icon: Car, blurb: 'Bay allotment and violations' },
   { key: 'STAFF', label: 'Staff', icon: HardHat, blurb: 'Roster, attendance and monthly pay' },
-  { key: 'AMENITIES', label: 'Bookings', icon: CalendarDays, blurb: 'What residents can book, and the requests waiting on a yes' }
+  { key: 'AMENITIES', label: 'Bookings', icon: CalendarDays, blurb: 'What residents can book, and the requests waiting on a yes' },
+  { key: 'POLLS', label: 'Polls', icon: Vote, blurb: 'Questions for the building, one vote per home' },
+  { key: 'EMERGENCY', label: 'Emergency numbers', icon: LifeBuoy, blurb: 'The numbers on every resident Help screen' }
 ];
 
 /**
- * The four day-to-day modules share one screen rather than four sidebar
- * entries, since an admin moves between them in a single sitting.
+ * The day-to-day modules share one screen rather than a sidebar entry each,
+ * since an admin moves between them in a single sitting.
  */
 export default function Community() {
   const [tab, setTab] = useState('HELPERS');
@@ -63,6 +67,8 @@ export default function Community() {
       {tab === 'PARKING' && <ParkingTab onAction={announce} />}
       {tab === 'STAFF' && <StaffTab onAction={announce} />}
       {tab === 'AMENITIES' && <AmenitiesTab onAction={announce} />}
+      {tab === 'POLLS' && <PollsTab onAction={announce} />}
+      {tab === 'EMERGENCY' && <EmergencyTab onAction={announce} />}
     </div>
   );
 }

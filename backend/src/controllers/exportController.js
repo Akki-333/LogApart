@@ -2,8 +2,11 @@ const db = require('../config/db');
 const log = require('../services/log');
 const { recordAudit } = require('../services/audit');
 const { sendCsv } = require('../services/csv');
-const { periodToDate } = require('../services/billing');
+const { periodToDate, toPaise, toRupees } = require('../services/billing');
 const { openBalancesByHome } = require('./billing/invoices');
+const { decorate } = require('./billing/shared');
+const { listBreaches } = require('./ticketController');
+const { payrollFor } = require('./staffController');
 
 /**
  * The lists a committee actually circulates, as spreadsheets: who owes, who
@@ -181,5 +184,122 @@ exports.helperAttendance = async (req, res) => {
     ]);
   } catch (error) {
     failed(req, res, 'helper-attendance', error);
+  }
+};
+
+const dayOf = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
+
+/** 4. Tickets that missed their SLA between two days. */
+exports.slaBreaches = async (req, res) => {
+  const from = String(req.query.from || daysAgo(30));
+  const to = String(req.query.to || today());
+
+  if (!isRealDay(from) || !isRealDay(to) || from > to) {
+    return res.status(400).json({ success: false, message: 'Give from and to as YYYY-MM-DD, with from on or before to.' });
+  }
+
+  try {
+    const rows = await listBreaches(from, to);
+
+    await recordAudit(req, {
+      action: 'EXPORT_SLA_BREACHES',
+      entity: 'maintenance_tickets',
+      summary: `Exported ${rows.length} SLA breaches, ${from} to ${to}`
+    });
+
+    sendCsv(res, `logapart-sla-breaches-${from}-to-${to}.csv`, [
+      ['LogApart SLA breaches', `${from} to ${to}`],
+      [],
+      ['Raised', 'Ticket', 'Where', 'Asset', 'Priority', 'Target hours', 'Status', 'Resolved', 'Hours late', 'Assigned to'],
+      ...rows.map((ticket) => [
+        dayOf(ticket.created_at), ticket.title, ticket.place, ticket.asset_name || '', ticket.priority,
+        ticket.sla_hours, ticket.status, dayOf(ticket.resolved_at), ticket.hours_late, ticket.assigned_to || ''
+      ])
+    ]);
+  } catch (error) {
+    failed(req, res, 'sla-breaches', error);
+  }
+};
+
+/** 5. A month of staff pay, indicative, worked out from attendance. */
+exports.staffPay = async (req, res) => {
+  const month = String(req.query.month || today().slice(0, 7));
+
+  if (!periodToDate(month)) {
+    return res.status(400).json({ success: false, message: 'Give the month as YYYY-MM.' });
+  }
+
+  try {
+    const staff = (await payrollFor(month)).filter((person) => person.is_active || person.marked_days > 0);
+    const total = toRupees(staff.reduce((sum, person) => sum + toPaise(person.payable), 0));
+
+    await recordAudit(req, {
+      action: 'EXPORT_STAFF_PAY',
+      entity: 'staff',
+      entity_id: month,
+      summary: `Exported staff pay for ${month}, ${staff.length} people`
+    });
+
+    sendCsv(res, `logapart-staff-pay-${month}.csv`, [
+      ['LogApart staff pay', month, 'Indicative: the committee decides what is actually paid'],
+      [],
+      ['Name', 'Role', 'Monthly salary', 'Present', 'Half days', 'Leave', 'Absent', 'Not marked', 'Days credited', 'Days in month', 'Indicative pay'],
+      ...staff.map((person) => [
+        person.name, person.role_title || '', person.monthly_salary, person.present_days, person.half_days,
+        person.leave_days, person.absent_days, person.days_in_month - person.marked_days,
+        person.credited_days, person.days_in_month, person.payable
+      ]),
+      [],
+      ['Total', '', '', '', '', '', '', '', '', '', total]
+    ]);
+  } catch (error) {
+    failed(req, res, 'staff-pay', error);
+  }
+};
+
+/** 6. A month of collections: what each home was billed and what it has paid. */
+exports.collections = async (req, res) => {
+  const month = String(req.query.month || today().slice(0, 7));
+  const periodMonth = periodToDate(month);
+
+  if (!periodMonth) {
+    return res.status(400).json({ success: false, message: 'Give the month as YYYY-MM.' });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      `SELECT i.*, u.number AS unit_number, u.floor AS unit_floor, usr.name AS resident_name
+       FROM invoices i
+       JOIN units u ON i.unit_id = u.id
+       LEFT JOIN users usr ON i.resident_user_id = usr.id
+       WHERE i.period_month = ?
+       ORDER BY u.floor ASC, u.number ASC`,
+      [periodMonth]
+    );
+
+    const invoices = rows.map(decorate);
+    const sum = (field) => toRupees(invoices.reduce((total, invoice) => total + toPaise(invoice[field]), 0));
+
+    await recordAudit(req, {
+      action: 'EXPORT_COLLECTIONS',
+      entity: 'invoices',
+      entity_id: month,
+      summary: `Exported collections for ${month}, ${invoices.length} invoices`
+    });
+
+    sendCsv(res, `logapart-collections-${month}.csv`, [
+      ['LogApart collections', month],
+      [],
+      ['Home', 'Floor', 'Resident', 'Maintenance', 'Electricity', 'Water', 'Corpus', 'Billed', 'Paid', 'Balance', 'Status', 'Due'],
+      ...invoices.map((invoice) => [
+        invoice.unit_number, invoice.unit_floor, invoice.resident_name || '', invoice.maintenance_amount,
+        invoice.electricity_amount, invoice.water_amount, invoice.corpus_amount, invoice.total_amount,
+        invoice.amount_paid, invoice.balance, invoice.display_status, invoice.due_date
+      ]),
+      [],
+      ['Total', '', '', sum('maintenance_amount'), sum('electricity_amount'), sum('water_amount'), sum('corpus_amount'), sum('total_amount'), sum('amount_paid'), sum('balance'), '', '']
+    ]);
+  } catch (error) {
+    failed(req, res, 'collections', error);
   }
 };

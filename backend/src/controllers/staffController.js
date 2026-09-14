@@ -17,55 +17,61 @@ const daysInMonth = (period) => {
 
 const validPeriod = (period) => /^\d{4}-\d{2}$/.test(String(period || ''));
 
+/**
+ * The roster for a month, with attendance rolled up and pay worked out.
+ * Shared by the staff screen and the pay export, so the two cannot disagree.
+ */
+async function payrollFor(period) {
+  const [rows] = await db.execute(
+    `SELECT s.id, s.name, s.phone, s.role_title, s.monthly_salary, s.joined_on,
+            s.is_active, s.user_id, usr.email AS login_email,
+            SUM(CASE WHEN a.status = 'PRESENT' THEN 1 ELSE 0 END) AS present_days,
+            SUM(CASE WHEN a.status = 'HALF_DAY' THEN 1 ELSE 0 END) AS half_days,
+            SUM(CASE WHEN a.status = 'LEAVE' THEN 1 ELSE 0 END) AS leave_days,
+            SUM(CASE WHEN a.status = 'ABSENT' THEN 1 ELSE 0 END) AS absent_days
+     FROM staff s
+     LEFT JOIN users usr ON s.user_id = usr.id
+     LEFT JOIN staff_attendance a
+       ON a.staff_id = s.id AND DATE_FORMAT(a.attendance_date, '%Y-%m') = ?
+     GROUP BY s.id, usr.email
+     ORDER BY s.is_active DESC, s.name ASC`,
+    [period]
+  );
+
+  const totalDays = daysInMonth(period);
+
+  return rows.map((row) => {
+    const present = Number(row.present_days || 0);
+    const half = Number(row.half_days || 0);
+    const leave = Number(row.leave_days || 0);
+    const absent = Number(row.absent_days || 0);
+    const credited = present * DAY_WEIGHT.PRESENT + half * DAY_WEIGHT.HALF_DAY + leave * DAY_WEIGHT.LEAVE;
+    const salary = Number(row.monthly_salary);
+
+    return {
+      ...row,
+      monthly_salary: salary,
+      present_days: present,
+      half_days: half,
+      leave_days: leave,
+      absent_days: absent,
+      marked_days: present + half + leave + absent,
+      days_in_month: totalDays,
+      credited_days: Number(credited.toFixed(1)),
+      // Indicative only: the admin still decides what actually gets paid.
+      payable: Number(((salary / totalDays) * credited).toFixed(2))
+    };
+  });
+}
+
+exports.payrollFor = payrollFor;
+
 /** 1. The roster, with this month's attendance rolled up per person. */
 exports.getStaff = async (req, res) => {
   const period = validPeriod(req.query.period) ? req.query.period : new Date().toISOString().slice(0, 7);
 
   try {
-    const [rows] = await db.execute(
-      `SELECT s.id, s.name, s.phone, s.role_title, s.monthly_salary, s.joined_on,
-              s.is_active, s.user_id, usr.email AS login_email,
-              SUM(CASE WHEN a.status = 'PRESENT' THEN 1 ELSE 0 END) AS present_days,
-              SUM(CASE WHEN a.status = 'HALF_DAY' THEN 1 ELSE 0 END) AS half_days,
-              SUM(CASE WHEN a.status = 'LEAVE' THEN 1 ELSE 0 END) AS leave_days,
-              SUM(CASE WHEN a.status = 'ABSENT' THEN 1 ELSE 0 END) AS absent_days
-       FROM staff s
-       LEFT JOIN users usr ON s.user_id = usr.id
-       LEFT JOIN staff_attendance a
-         ON a.staff_id = s.id AND DATE_FORMAT(a.attendance_date, '%Y-%m') = ?
-       GROUP BY s.id, usr.email
-       ORDER BY s.is_active DESC, s.name ASC`,
-      [period]
-    );
-
-    const totalDays = daysInMonth(period);
-
-    res.json({
-      success: true,
-      data: rows.map((row) => {
-        const present = Number(row.present_days || 0);
-        const half = Number(row.half_days || 0);
-        const leave = Number(row.leave_days || 0);
-        const absent = Number(row.absent_days || 0);
-        const credited = present * DAY_WEIGHT.PRESENT + half * DAY_WEIGHT.HALF_DAY + leave * DAY_WEIGHT.LEAVE;
-        const salary = Number(row.monthly_salary);
-
-        return {
-          ...row,
-          monthly_salary: salary,
-          present_days: present,
-          half_days: half,
-          leave_days: leave,
-          absent_days: absent,
-          marked_days: present + half + leave + absent,
-          days_in_month: totalDays,
-          credited_days: Number(credited.toFixed(1)),
-          // Indicative only: the admin still decides what actually gets paid.
-          payable: Number(((salary / totalDays) * credited).toFixed(2))
-        };
-      }),
-      period
-    });
+    res.json({ success: true, data: await payrollFor(period), period });
   } catch (error) {
     console.error('Error fetching staff:', error);
     res.status(500).json({ success: false, message: 'Server error fetching staff' });

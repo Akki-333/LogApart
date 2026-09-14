@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { outstandingForUnit } = require('./billingController');
+const { checklistFor, BLOCKING_STEPS } = require('./moveOutController');
 const { recordAudit } = require('../services/audit');
 
 // One-time password handed to a newly onboarded resident. They are forced to
@@ -248,6 +249,32 @@ exports.vacateUnit = async (req, res) => {
     }
 
     const resident = residentRows[0];
+
+    // With notice given, the certificate waits on the checklist. A home vacated
+    // without notice still goes through, as it always has.
+    const [openMoveOuts] = await connection.execute(
+      "SELECT * FROM move_outs WHERE unit_id = ? AND status = 'OPEN' FOR UPDATE",
+      [unitId]
+    );
+    const moveOut = openMoveOuts[0] || null;
+
+    if (moveOut) {
+      const { steps, ready } = await checklistFor(connection, moveOut);
+
+      if (!ready) {
+        await connection.rollback();
+        const pending = steps
+          .filter((step) => BLOCKING_STEPS.includes(step.key) && !step.done)
+          .map((step) => step.label.toLowerCase());
+
+        return res.status(409).json({
+          success: false,
+          code: 'MOVE_OUT_STEPS_PENDING',
+          message: `Finish the move-out first: ${pending.join(', ')}.`,
+          data: steps
+        });
+      }
+    }
     const dues = await outstandingForUnit(unitId, connection);
 
     if (dues.balance > 0 && !waiveDues) {
@@ -300,6 +327,13 @@ exports.vacateUnit = async (req, res) => {
         req.user.id
       ]
     );
+
+    if (moveOut) {
+      await connection.execute(
+        "UPDATE move_outs SET status = 'COMPLETED', completed_at = NOW(), certificate_number = ? WHERE id = ?",
+        [certificateNumber, moveOut.id]
+      );
+    }
 
     // Their token is good for another day and still says RESIDENT. Bumping the
     // version ends it now, and an account with no other home is closed outright

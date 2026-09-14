@@ -113,7 +113,7 @@ exports.getExpenses = async (req, res) => {
 exports.createExpense = async (req, res) => {
   const {
     vendor_id: vendorId, payee_name: payeeName, category, fund, amount,
-    bill_date: billDate, paid_on: paidOn, mode, reference, note, ticket_id: ticketId
+    bill_date: billDate, paid_on: paidOn, mode, reference, note, ticket_id: ticketId, asset_id: assetId
   } = req.body;
 
   if (!CATEGORIES.includes(category)) {
@@ -141,8 +141,8 @@ exports.createExpense = async (req, res) => {
 
     const [result] = await db.execute(
       `INSERT INTO expenses
-        (vendor_id, payee_name, category, fund, amount, bill_date, paid_on, mode, reference, note, ticket_id, recorded_by_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (vendor_id, payee_name, category, fund, amount, bill_date, paid_on, mode, reference, note, ticket_id, asset_id, recorded_by_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         vendorId || null,
         payee,
@@ -155,6 +155,7 @@ exports.createExpense = async (req, res) => {
         reference || null,
         note || null,
         ticketId || null,
+        assetId || null,
         req.user.id
       ]
     );

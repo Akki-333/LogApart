@@ -9,6 +9,9 @@ const { validate } = require('../middleware/validate');
 // Admin only for now. Resident-scoped ticket access arrives with the
 // resident portal, which needs per-unit filtering before it can be opened up.
 router.get('/', requireRole('ADMIN'), ticketController.getTickets);
+// The SLA breach report, and a way to run the escalation sweep on demand.
+router.get('/sla/breaches', requireRole('ADMIN'), ticketController.getBreaches);
+router.post('/sla/escalate', requireRole('ADMIN'), ticketController.escalateNow);
 router.post(
   '/',
   requireRole('ADMIN'),
@@ -19,6 +22,7 @@ router.post(
     scope: { oneOf: ['UNIT', 'COMMON'], label: 'Scope' },
     location: { type: 'string', maxLength: 100, label: 'Location' },
     unit_id: { type: 'integer', label: 'Home' },
+    asset_id: { type: 'integer', label: 'Asset' },
     priority: { oneOf: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'], label: 'Priority' }
   }),
   ticketController.createTicket
@@ -29,7 +33,8 @@ router.put(
   validate({
     status: { oneOf: ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'], label: 'Status' },
     priority: { oneOf: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'], label: 'Priority' },
-    assigned_to_id: { type: 'integer', label: 'Assignee' }
+    assigned_to_id: { type: 'integer', label: 'Assignee' },
+    asset_id: { type: 'integer', label: 'Asset' }
   }),
   ticketController.updateTicketStatus
 );

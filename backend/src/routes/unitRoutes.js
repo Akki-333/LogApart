@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const unitController = require('../controllers/unitController');
+const moveOutController = require('../controllers/moveOutController');
 const { requireRole } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 
@@ -49,6 +50,27 @@ router.post(
   }),
   unitController.vacateUnit
 );
+
+// Moving out as a checklist. Once notice is recorded, /vacate waits on it.
+router.get('/move-outs', requireRole('ADMIN'), moveOutController.getOpenMoveOuts);
+router.get('/:unit_id/move-out', requireRole('ADMIN'), moveOutController.getMoveOut);
+router.post(
+  '/:unit_id/move-out',
+  requireRole('ADMIN'),
+  validate({
+    notice_given_on: { type: 'date', label: 'Notice given on' },
+    planned_move_out: { required: true, type: 'date', label: 'Moving out on' },
+    note: { type: 'string', maxLength: 255, label: 'Note' }
+  }),
+  moveOutController.giveNotice
+);
+router.post(
+  '/:unit_id/move-out/release',
+  requireRole('ADMIN'),
+  validate({ step: { oneOf: ['HELPERS_UNLINKED', 'PARKING_RELEASED', 'PASSES_CANCELLED'], label: 'Step' } }),
+  moveOutController.releaseStep
+);
+router.post('/:unit_id/move-out/cancel', requireRole('ADMIN'), moveOutController.cancelMoveOut);
 
 // The only password recovery path there is, so it is admin-issued and audited.
 router.post(

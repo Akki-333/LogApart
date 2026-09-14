@@ -86,6 +86,8 @@ const MOUNTS = [
   { path: '/api/polls', router: require('./routes/pollRoutes') },
   { path: '/api/parcels', router: require('./routes/parcelRoutes') },
   { path: '/api/emergency', router: require('./routes/emergencyRoutes') },
+  { path: '/api/assets', router: require('./routes/assetRoutes') },
+  { path: '/api/shifts', router: require('./routes/shiftRoutes') },
   // Each export reads a whole list and names people.
   { path: '/api/exports', limit: 'expensive', router: require('./routes/exportRoutes') }
 ];

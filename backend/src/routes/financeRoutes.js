@@ -20,7 +20,8 @@ router.post(
     bill_date: { required: true, type: 'date', label: 'Bill date' },
     paid_on: { type: 'date', label: 'Payment date' },
     payee_name: { type: 'string', maxLength: 150, label: 'Payee' },
-    reference: { type: 'string', maxLength: 100, label: 'Reference' }
+    reference: { type: 'string', maxLength: 100, label: 'Reference' },
+    asset_id: { type: 'integer', label: 'Asset' }
   }),
   expenseController.createExpense
 );

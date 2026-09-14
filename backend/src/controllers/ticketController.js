@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { activeHomeFor } = require('../services/residency');
 const { createNotification } = require('./notificationController');
 const { isAdminRole } = require('../middleware/auth');
+const { slaFor, escalateBreaches } = require('../services/sla');
 
 /**
  * Maintenance tickets cover the building's structure and its shared parts.
@@ -15,6 +16,7 @@ const TICKET_SELECT = `
   SELECT
     t.id, t.title, t.description, t.category, t.priority, t.status,
     t.scope, t.location, t.unit_id, t.created_at, t.resolved_at, t.raised_by_resident,
+    t.asset_id, a.name AS asset_name, t.sla_breached_at,
     t.rating, t.rating_note, t.reopen_count,
     (SELECT COUNT(*) FROM ticket_comments c WHERE c.ticket_id = t.id) AS comment_count,
     u.number AS unit_number,
@@ -24,13 +26,16 @@ const TICKET_SELECT = `
   LEFT JOIN units u ON t.unit_id = u.id
   JOIN users usr ON t.created_by_id = usr.id
   LEFT JOIN users assignee ON t.assigned_to_id = assignee.id
+  LEFT JOIN assets a ON t.asset_id = a.id
 `;
 
 /** Where the ticket is, in words, for any screen that needs one label. */
 const placeOf = (ticket) =>
   ticket.scope === 'COMMON' ? ticket.location || 'Common area' : `Home ${ticket.unit_number}`;
 
-const shape = (ticket) => ({ ...ticket, place: placeOf(ticket) });
+// The SLA is derived here, so the board, the resident portal and the breach
+// report all read one rule.
+const shape = (ticket) => ({ ...ticket, place: placeOf(ticket), ...slaFor(ticket) });
 
 exports.getTickets = async (req, res) => {
   const { scope } = req.query;
@@ -52,7 +57,7 @@ exports.getTickets = async (req, res) => {
 
 exports.updateTicketStatus = async (req, res) => {
   const { id } = req.params;
-  const { status, priority, assigned_to_id: assignedToId } = req.body;
+  const { status, priority, assigned_to_id: assignedToId, asset_id: assetId } = req.body;
 
   if (status && !['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].includes(status)) {
     return res.status(400).json({ success: false, message: 'Unknown ticket status.' });
@@ -68,13 +73,14 @@ exports.updateTicketStatus = async (req, res) => {
        SET status = IFNULL(?, status),
            priority = IFNULL(?, priority),
            assigned_to_id = IFNULL(?, assigned_to_id),
+           asset_id = IFNULL(?, asset_id),
            resolved_at = CASE
              WHEN ? IN ('RESOLVED', 'CLOSED') THEN CURRENT_TIMESTAMP
              WHEN ? IS NOT NULL THEN NULL
              ELSE resolved_at
            END
        WHERE id = ?`,
-      [status || null, priority || null, assignedToId || null, status || null, status || null, id]
+      [status || null, priority || null, assignedToId || null, assetId || null, status || null, status || null, id]
     );
 
     if (result.affectedRows === 0) {
@@ -89,7 +95,7 @@ exports.updateTicketStatus = async (req, res) => {
 };
 
 exports.createTicket = async (req, res) => {
-  const { unit_id: unitId, title, description, category, priority, scope, location } = req.body;
+  const { unit_id: unitId, title, description, category, priority, scope, location, asset_id: assetId } = req.body;
 
   if (!String(title || '').trim() || !String(description || '').trim()) {
     return res.status(400).json({ success: false, message: 'Give the issue a title and a description.' });
@@ -108,12 +114,13 @@ exports.createTicket = async (req, res) => {
   try {
     await db.execute(
       `INSERT INTO maintenance_tickets
-        (unit_id, scope, location, created_by_id, title, description, category, priority)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (unit_id, scope, location, asset_id, created_by_id, title, description, category, priority)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         isCommon ? null : unitId,
         isCommon ? 'COMMON' : 'UNIT',
         isCommon ? String(location).trim() : null,
+        assetId || null,
         req.user.id,
         String(title).trim(),
         String(description).trim(),
@@ -342,5 +349,66 @@ exports.reopenTicket = async (req, res) => {
   } catch (error) {
     console.error('Error reopening ticket:', error);
     res.status(500).json({ success: false, message: 'Server error reopening that issue' });
+  }
+};
+
+const DUE = "t.created_at + INTERVAL (CASE t.priority WHEN 'URGENT' THEN 4 WHEN 'HIGH' THEN 24 ELSE 48 END) HOUR";
+const isRealDay = (value) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(String(value)) &&
+  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+
+/**
+ * Tickets raised between two days that missed their SLA: still open past it, or
+ * resolved after it. Shared with the CSV export so the report and the file agree.
+ */
+const listBreaches = async (from, to) => {
+  const [rows] = await db.execute(
+    `${TICKET_SELECT}
+     WHERE DATE(t.created_at) BETWEEN ? AND ?
+       AND ((t.status IN ('OPEN', 'IN_PROGRESS') AND NOW() > ${DUE})
+         OR (t.resolved_at IS NOT NULL AND t.resolved_at > ${DUE}))
+     ORDER BY t.created_at DESC`,
+    [from, to]
+  );
+
+  return rows.map(shape).map((ticket) => {
+    const finished = ticket.resolved_at ? new Date(ticket.resolved_at) : new Date();
+    return { ...ticket, hours_late: Math.round(((finished - new Date(ticket.sla_due_at)) / 3600000) * 10) / 10 };
+  });
+};
+
+exports.listBreaches = listBreaches;
+exports.isRealDay = isRealDay;
+
+/** The breach report, for a date range that defaults to the last thirty days. */
+exports.getBreaches = async (req, res) => {
+  const to = String(req.query.to || new Date().toISOString().slice(0, 10));
+  const from = String(req.query.from || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
+
+  if (!isRealDay(from) || !isRealDay(to) || from > to) {
+    return res.status(400).json({ success: false, message: 'Give from and to as YYYY-MM-DD, with from on or before to.' });
+  }
+
+  try {
+    const data = await listBreaches(from, to);
+    res.json({ success: true, data, from, to });
+  } catch (error) {
+    console.error('Error reading SLA breaches:', error);
+    res.status(500).json({ success: false, message: 'Server error reading SLA breaches' });
+  }
+};
+
+/** Run the breach sweep now rather than waiting for the next one. */
+exports.escalateNow = async (req, res) => {
+  try {
+    const escalated = await escalateBreaches();
+    res.json({
+      success: true,
+      message: escalated === 0 ? 'No new breaches.' : `${escalated} ticket${escalated === 1 ? '' : 's'} escalated to the admins.`,
+      data: { escalated }
+    });
+  } catch (error) {
+    console.error('Error escalating SLA breaches:', error);
+    res.status(500).json({ success: false, message: 'Server error escalating breaches' });
   }
 };
