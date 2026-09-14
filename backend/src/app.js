@@ -20,8 +20,30 @@ const app = express();
 // First, so even a request refused by a later layer leaves a line with an id.
 app.use(requestLog);
 
-app.use(helmet());
-app.use(cors({ origin: config.corsOrigin, credentials: true }));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
+
+const isAllowedOrigin = (origin, callback) => {
+  // Allow requests with no origin (like curl, mobile apps, server-to-server)
+  if (!origin) return callback(null, true);
+
+  if (config.isProduction) {
+    if (origin === config.corsOrigin) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  }
+
+  // In development, allow localhost and 127.0.0.1 on any port (5173, 5174, etc.)
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === config.corsOrigin) {
+    return callback(null, true);
+  }
+
+  return callback(null, false);
+};
+
+app.use(cors({ origin: isAllowedOrigin, credentials: true }));
 
 // Nothing this API accepts is large. A visitor name, an invoice, a notice body.
 // A cap keeps a single request from being an easy way to exhaust memory.
