@@ -19,6 +19,8 @@ ALTER TABLE `amenity_bookings`
 
 ALTER TABLE `amenity_bookings`
   ADD COLUMN `holds_slot` TINYINT
-    GENERATED ALWAYS AS (IF(`status` IN ('PENDING','CONFIRMED'), 1, NULL)) STORED
-    COMMENT 'Null once the booking no longer holds the slot',
+    GENERATED ALWAYS AS (IF(`status` IN ('PENDING','CONFIRMED'), 1, NULL)) VIRTUAL
+    COMMENT 'Null once the booking no longer holds the slot';
+
+ALTER TABLE `amenity_bookings`
   ADD UNIQUE KEY `uniq_live_slot` (`amenity_id`, `booking_date`, `starts_at`, `holds_slot`);

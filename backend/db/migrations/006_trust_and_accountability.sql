@@ -12,7 +12,9 @@
 --    waive dues or record a payment that never arrived, leaving no trace.
 
 ALTER TABLE `users`
-  ADD COLUMN `token_version` INT NOT NULL DEFAULT 0 COMMENT 'Bumped to invalidate every token already issued' AFTER `must_change_password`,
+  ADD COLUMN `token_version` INT NOT NULL DEFAULT 0 COMMENT 'Bumped to invalidate every token already issued' AFTER `must_change_password`;
+
+ALTER TABLE `users`
   ADD COLUMN `is_active` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'A closed account is refused at the door, not just hidden' AFTER `token_version`;
 
 CREATE TABLE IF NOT EXISTS `login_attempts` (
@@ -51,6 +53,10 @@ CREATE TABLE IF NOT EXISTS `audit_log` (
 
 -- A gate record is evidence. It leaves the desk but stays in the building.
 ALTER TABLE `visitor_logs`
-  ADD COLUMN `deleted_at` TIMESTAMP NULL DEFAULT NULL AFTER `exit_time`,
-  ADD COLUMN `deleted_by_id` INT DEFAULT NULL AFTER `deleted_at`,
+  ADD COLUMN `deleted_at` TIMESTAMP NULL DEFAULT NULL AFTER `exit_time`;
+
+ALTER TABLE `visitor_logs`
+  ADD COLUMN `deleted_by_id` INT DEFAULT NULL AFTER `deleted_at`;
+
+ALTER TABLE `visitor_logs`
   ADD COLUMN `delete_reason` VARCHAR(255) DEFAULT NULL AFTER `deleted_by_id`;

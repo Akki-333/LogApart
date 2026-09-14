@@ -71,7 +71,7 @@ async function seedUser({ name, email, role, phone, envKey }) {
 
   const shared = !envKey && process.env.SEED_DEMO_PASSWORD;
   const password = (envKey && process.env[envKey]) || shared || randomPassword();
-  const forceChange = shared ? 0 : 1;
+  const forceChange = ((envKey && process.env[envKey]) || shared) ? 0 : 1;
   const hash = await bcrypt.hash(password, 10);
 
   const [result] = await db.execute(
@@ -89,7 +89,7 @@ async function seedUser({ name, email, role, phone, envKey }) {
 /* ------------------------------------------------------------------ demo */
 
 const RESIDENTS = [
-  ['Rahul Sharma', 'rahul.sharma', '9840112233', 'OWNER'],
+  ['Rahul Sharma', 'rahul.sharma@gmail.com', '9840112233', 'OWNER'],
   ['Ananya Iyer', 'ananya.iyer', '9840223344', 'OWNER'],
   ['Vikram Patel', 'vikram.patel', '9840334455', 'TENANT'],
   ['Priya Nair', 'priya.nair', '9840445566', 'TENANT'],
@@ -120,8 +120,9 @@ async function seedResidents() {
     );
     if (Number(live.c) > 0) continue;
 
+    const email = resident[1].includes('@') ? resident[1] : `${resident[1]}@logapart.local`;
     const { id } = await seedUser({
-      name: resident[0], email: `${resident[1]}@logapart.local`, role: 'RESIDENT', phone: resident[2]
+      name: resident[0], email, role: 'RESIDENT', phone: resident[2]
     });
 
     await db.execute(

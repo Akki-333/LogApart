@@ -23,13 +23,19 @@ CREATE TABLE IF NOT EXISTS `assets` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 ALTER TABLE `maintenance_tickets`
-  ADD COLUMN `asset_id` INT DEFAULT NULL AFTER `location`,
-  ADD COLUMN `sla_breached_at` TIMESTAMP NULL DEFAULT NULL COMMENT 'Set once, when the breach is first noticed and the admins are told',
+  ADD COLUMN `asset_id` INT DEFAULT NULL AFTER `location`;
+
+ALTER TABLE `maintenance_tickets`
+  ADD COLUMN `sla_breached_at` TIMESTAMP NULL DEFAULT NULL COMMENT 'Set once, when the breach is first noticed and the admins are told';
+
+ALTER TABLE `maintenance_tickets`
   ADD KEY `idx_ticket_asset` (`asset_id`),
   ADD CONSTRAINT `tickets_asset_fk` FOREIGN KEY (`asset_id`) REFERENCES `assets` (`id`) ON DELETE SET NULL;
 
 ALTER TABLE `expenses`
-  ADD COLUMN `asset_id` INT DEFAULT NULL AFTER `ticket_id`,
+  ADD COLUMN `asset_id` INT DEFAULT NULL AFTER `ticket_id`;
+
+ALTER TABLE `expenses`
   ADD KEY `idx_expense_asset` (`asset_id`),
   ADD CONSTRAINT `expenses_asset_fk` FOREIGN KEY (`asset_id`) REFERENCES `assets` (`id`) ON DELETE SET NULL;
 

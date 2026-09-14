@@ -6,8 +6,12 @@
 -- visitor arrives, carrying a short code the guard looks up at the gate.
 
 ALTER TABLE `visitor_logs`
-  ADD COLUMN `pass_code` VARCHAR(12) DEFAULT NULL COMMENT 'Short code a resident gives their guest' AFTER `company`,
-  ADD COLUMN `expected_on` DATE DEFAULT NULL COMMENT 'Day the visitor is expected' AFTER `pass_code`,
+  ADD COLUMN `pass_code` VARCHAR(12) DEFAULT NULL COMMENT 'Short code a resident gives their guest' AFTER `company`;
+
+ALTER TABLE `visitor_logs`
+  ADD COLUMN `expected_on` DATE DEFAULT NULL COMMENT 'Day the visitor is expected' AFTER `pass_code`;
+
+ALTER TABLE `visitor_logs`
   ADD COLUMN `created_by_id` INT DEFAULT NULL COMMENT 'Resident who raised the pass' AFTER `logged_by_id`;
 
 -- A pass exists before anyone walks through the gate, so neither the entry

@@ -145,9 +145,10 @@ CREATE TABLE IF NOT EXISTS `dues_reminders` (
   CONSTRAINT `dues_reminders_ibfk_1` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- A payment was recorded and the resident got nothing back.
 ALTER TABLE `payment_records`
-  ADD COLUMN `receipt_number` VARCHAR(32) DEFAULT NULL COMMENT 'RCP-2026-0001, issued on recording' AFTER `id`,
+  ADD COLUMN `receipt_number` VARCHAR(32) DEFAULT NULL COMMENT 'RCP-2026-0001, issued on recording' AFTER `id`;
+
+ALTER TABLE `payment_records`
   ADD UNIQUE KEY `uniq_receipt_number` (`receipt_number`);
 
 -- A corpus contribution collected alongside maintenance, kept as its own line

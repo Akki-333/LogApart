@@ -30,13 +30,27 @@ const isAllowedOrigin = (origin, callback) => {
   // Allow requests with no origin (like curl, mobile apps, server-to-server)
   if (!origin) return callback(null, true);
 
+  const cleanOrigin = origin.replace(/\/+$/, '');
+  const allowed = (config.corsOrigin || '')
+    .split(',')
+    .map((s) => s.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  if (allowed.includes(cleanOrigin)) {
+    return callback(null, true);
+  }
+
+  // Allow any Vercel deployment (e.g. frontend-psi-nine-73.vercel.app)
+  if (/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.vercel\.app$/i.test(cleanOrigin)) {
+    return callback(null, true);
+  }
+
   if (config.isProduction) {
-    if (origin === config.corsOrigin) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    return callback(null, false);
   }
 
   // In development, allow localhost and 127.0.0.1 on any port (5173, 5174, etc.)
-  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === config.corsOrigin) {
+  if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(cleanOrigin)) {
     return callback(null, true);
   }
 

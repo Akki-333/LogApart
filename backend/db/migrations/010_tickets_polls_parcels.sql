@@ -17,9 +17,15 @@ CREATE TABLE IF NOT EXISTS `ticket_comments` (
 -- Resolution quality was assumed. A rating makes it measurable, and a reopen
 -- window means "resolved" has to survive contact with the person who reported it.
 ALTER TABLE `maintenance_tickets`
-  ADD COLUMN `rating` TINYINT DEFAULT NULL COMMENT '1 to 5, given by the resident who raised it' AFTER `resolved_at`,
-  ADD COLUMN `rating_note` VARCHAR(255) DEFAULT NULL AFTER `rating`,
-  ADD COLUMN `reopened_at` TIMESTAMP NULL DEFAULT NULL AFTER `rating_note`,
+  ADD COLUMN `rating` TINYINT DEFAULT NULL COMMENT '1 to 5, given by the resident who raised it' AFTER `resolved_at`;
+
+ALTER TABLE `maintenance_tickets`
+  ADD COLUMN `rating_note` VARCHAR(255) DEFAULT NULL AFTER `rating`;
+
+ALTER TABLE `maintenance_tickets`
+  ADD COLUMN `reopened_at` TIMESTAMP NULL DEFAULT NULL AFTER `rating_note`;
+
+ALTER TABLE `maintenance_tickets`
   ADD COLUMN `reopen_count` INT NOT NULL DEFAULT 0 AFTER `reopened_at`;
 
 -- One vote per flat, not per person, because that is how a society decides

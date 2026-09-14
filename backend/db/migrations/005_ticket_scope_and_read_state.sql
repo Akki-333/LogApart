@@ -9,8 +9,12 @@
 --    wrong for every other reader.
 
 ALTER TABLE `maintenance_tickets`
-  MODIFY COLUMN `unit_id` INT NULL COMMENT 'Null for a common-area issue',
-  ADD COLUMN `scope` ENUM('UNIT','COMMON') NOT NULL DEFAULT 'UNIT' AFTER `unit_id`,
+  MODIFY COLUMN `unit_id` INT NULL COMMENT 'Null for a common-area issue';
+
+ALTER TABLE `maintenance_tickets`
+  ADD COLUMN `scope` ENUM('UNIT','COMMON') NOT NULL DEFAULT 'UNIT' AFTER `unit_id`;
+
+ALTER TABLE `maintenance_tickets`
   ADD COLUMN `location` VARCHAR(100) DEFAULT NULL COMMENT 'Where, for a common issue: Lift A, terrace, pump room' AFTER `scope`;
 
 -- Everything raised so far was against a flat, which stays true.

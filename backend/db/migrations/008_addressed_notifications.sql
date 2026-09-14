@@ -6,6 +6,8 @@
 -- whatever their role.
 
 ALTER TABLE `notifications`
-  ADD COLUMN `target_user_id` INT DEFAULT NULL COMMENT 'One person, overriding target_role' AFTER `target_role`,
+  ADD COLUMN `target_user_id` INT DEFAULT NULL COMMENT 'One person, overriding target_role' AFTER `target_role`;
+
+ALTER TABLE `notifications`
   ADD KEY `idx_target_user` (`target_user_id`),
   ADD CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`target_user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
