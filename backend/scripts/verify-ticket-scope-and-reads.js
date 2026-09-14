@@ -170,20 +170,22 @@ async function run() {
     check('both admins start with the same unread backlog', a.body.unreadCount === b.body.unreadCount, `${a.body.unreadCount} vs ${b.body.unreadCount}`);
 
     const before = a.body.unreadCount;
-    const first = a.body.data[0];
+    const first = a.body.data && a.body.data[0];
     check('there is a notification to read', Boolean(first));
 
-    await call(tokenA, `/notifications/${first.id}/read`, { method: 'PUT' });
-    a = await call(tokenA, '/notifications');
-    b = await call(tokenB, '/notifications');
-    check('reader A unread count drops by one', a.body.unreadCount === before - 1, String(a.body.unreadCount));
-    check('reader B is untouched by A reading', b.body.unreadCount === before, String(b.body.unreadCount));
-    check('the row is read for A', a.body.data.find((n) => n.id === first.id).is_read === true);
-    check('the row is unread for B', b.body.data.find((n) => n.id === first.id).is_read === false);
+    if (first) {
+      await call(tokenA, `/notifications/${first.id}/read`, { method: 'PUT' });
+      a = await call(tokenA, '/notifications');
+      b = await call(tokenB, '/notifications');
+      check('reader A unread count drops by one', a.body.unreadCount === before - 1, String(a.body.unreadCount));
+      check('reader B is untouched by A reading', b.body.unreadCount === before, String(b.body.unreadCount));
+      check('the row is read for A', a.body.data.find((n) => n.id === first.id)?.is_read === true);
+      check('the row is unread for B', b.body.data.find((n) => n.id === first.id)?.is_read === false);
 
-    res = await call(tokenA, `/notifications/${first.id}/read`, { method: 'PUT' });
-    a = await call(tokenA, '/notifications');
-    check('marking twice is idempotent', res.status === 200 && a.body.unreadCount === before - 1);
+      res = await call(tokenA, `/notifications/${first.id}/read`, { method: 'PUT' });
+      a = await call(tokenA, '/notifications');
+      check('marking twice is idempotent', res.status === 200 && a.body.unreadCount === before - 1);
+    }
 
     await call(tokenA, '/notifications/read-all', { method: 'PUT' });
     a = await call(tokenA, '/notifications');

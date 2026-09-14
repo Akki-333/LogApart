@@ -415,6 +415,16 @@ async function seedCommunity(adminId, guardId) {
     );
   }
 
+  const [[notifCount]] = await db.query('SELECT COUNT(*) AS c FROM notifications');
+  if (Number(notifCount.c) === 0) {
+    await db.execute(
+      `INSERT INTO notifications (title, message, target_role, type)
+       VALUES 
+         ('Water tank cleaning on Sunday', 'Supply is off between 10am and 2pm.', 'ALL', 'INFO'),
+         ('Gate activity', 'Delivery entered for Flat B-1.', 'ADMIN', 'GATE')`
+    );
+  }
+
   say('Community: helpers linked to homes, notices, bays, staff, amenities, a poll, a parcel and the emergency numbers.');
 }
 

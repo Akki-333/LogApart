@@ -258,7 +258,7 @@ exports.createTicket = withUnit(async (req, res, unit) => {
     ]
   );
 
-  createNotification({
+  await createNotification({
     title: isCommon
       ? `Common area issue: ${String(location).trim()}`
       : `New issue from Home ${unit.number}`,
@@ -344,7 +344,7 @@ exports.createPass = withUnit(async (req, res, unit) => {
         ]
       );
 
-      createNotification({
+      await createNotification({
         title: `Expected visitor for Home ${unit.number}`,
         message: `${String(visitorName).trim()} is pre-approved for ${expectedOn}. Gate code ${code}.`,
         target_role: 'SECURITY',

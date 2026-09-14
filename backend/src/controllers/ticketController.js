@@ -131,7 +131,7 @@ exports.createTicket = async (req, res) => {
 
     // A common-area fault affects everybody, so residents are told about it.
     if (isCommon) {
-      createNotification({
+      await createNotification({
         title: `Issue reported: ${String(location).trim()}`,
         message: String(title).trim(),
         target_role: 'RESIDENT',
