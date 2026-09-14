@@ -352,7 +352,7 @@ exports.reopenTicket = async (req, res) => {
   }
 };
 
-const DUE = "t.created_at + INTERVAL (CASE t.priority WHEN 'URGENT' THEN 4 WHEN 'HIGH' THEN 24 ELSE 48 END) HOUR";
+const SLA_SECONDS = "(CASE t.priority WHEN 'URGENT' THEN 14400 WHEN 'HIGH' THEN 86400 ELSE 172800 END)";
 const isRealDay = (value) =>
   /^\d{4}-\d{2}-\d{2}$/.test(String(value)) &&
   new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
@@ -365,8 +365,8 @@ const listBreaches = async (from, to) => {
   const [rows] = await db.execute(
     `${TICKET_SELECT}
      WHERE DATE(t.created_at) BETWEEN ? AND ?
-       AND ((t.status IN ('OPEN', 'IN_PROGRESS') AND NOW() > ${DUE})
-         OR (t.resolved_at IS NOT NULL AND t.resolved_at > ${DUE}))
+       AND ((t.status IN ('OPEN', 'IN_PROGRESS') AND TIMESTAMPDIFF(SECOND, t.created_at, NOW()) > ${SLA_SECONDS})
+         OR (t.resolved_at IS NOT NULL AND TIMESTAMPDIFF(SECOND, t.created_at, t.resolved_at) > ${SLA_SECONDS}))
      ORDER BY t.created_at DESC`,
     [from, to]
   );

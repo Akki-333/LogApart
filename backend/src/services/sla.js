@@ -31,11 +31,11 @@ function slaFor(ticket, now = new Date()) {
 }
 
 // The same rule as slaFor, in SQL, so a sweep is one statement however many
-// tickets are open.
+// tickets are open. Compatible with MySQL and TiDB.
 const OVERDUE = `
   t.status IN ('OPEN', 'IN_PROGRESS')
   AND t.sla_breached_at IS NULL
-  AND t.created_at < NOW() - INTERVAL (CASE t.priority WHEN 'URGENT' THEN 4 WHEN 'HIGH' THEN 24 ELSE 48 END) HOUR`;
+  AND TIMESTAMPDIFF(SECOND, t.created_at, NOW()) >= (CASE t.priority WHEN 'URGENT' THEN 14400 WHEN 'HIGH' THEN 86400 ELSE 172800 END)`;
 
 /**
  * Stamps every newly breached ticket and tells the admins. The rows are locked
