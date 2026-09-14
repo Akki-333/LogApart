@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: logapart-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm run db:migrate && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "4000"
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+
+  - type: static
+    name: logapart-frontend
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false

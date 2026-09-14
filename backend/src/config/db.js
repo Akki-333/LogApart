@@ -8,12 +8,17 @@ require('dotenv').config();
 // so none of the fallbacks below can ever apply to a real deployment.
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'apartment_admin',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1') ? {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    minVersion: 'TLSv1.2'
+  } : undefined,
   // DATE columns are calendar days, not instants. Left as JS Date objects the
   // driver anchors them to local midnight, and serialising to JSON shifts them
   // back a day in any timezone ahead of UTC. A due date of the 10th reached the

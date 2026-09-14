@@ -26,15 +26,26 @@ function statements(sql) {
 async function run() {
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT) || 3306,
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    multipleStatements: false
+    multipleStatements: false,
+    ssl: (process.env.DB_SSL === 'true' || process.env.DB_SSL === '1') ? {
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+      minVersion: 'TLSv1.2'
+    } : undefined
   });
 
   const dbName = process.env.DB_NAME || 'apartment_admin';
-  await connection.query(
-    `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`
-  );
+  try {
+    await connection.query(
+      `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci`
+    );
+  } catch (err) {
+    if (!['ER_DBACCESS_DENIED_ERROR', 'ER_ACCESS_DENIED_ERROR'].includes(err.code)) {
+      throw err;
+    }
+  }
   await connection.changeUser({ database: dbName });
 
   await connection.query(`
