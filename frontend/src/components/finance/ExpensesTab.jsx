@@ -8,7 +8,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 const BLANK = {
   payee_name: '', vendor_id: '', category: 'REPAIRS', fund: 'MAINTENANCE',
-  amount: '', bill_date: today(), paid_on: '', mode: 'BANK_TRANSFER', reference: '', note: ''
+  amount: '', bill_date: today(), paid_on: '', mode: 'BANK_TRANSFER', reference: '', note: '', asset_id: ''
 };
 
 /** Every bill the building pays, and the ones it still owes. */
@@ -18,6 +18,7 @@ export default function ExpensesTab({ onAction }) {
   const [totals, setTotals] = useState(null);
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [form, setForm] = useState(BLANK);
@@ -27,10 +28,12 @@ export default function ExpensesTab({ onAction }) {
     setLoading(true);
     try {
       const query = filter === 'ALL' ? '' : `?category=${filter}`;
-      const [list, vendorList] = await Promise.all([
+      const [list, vendorList, assetList] = await Promise.all([
         api.get(`/api/finance/expenses${query}`),
-        api.get('/api/finance/vendors')
+        api.get('/api/finance/vendors'),
+        api.get('/api/assets')
       ]);
+      setAssets(assetList.data.data.filter((asset) => asset.is_active));
       setExpenses(list.data.data);
       setTotals(list.data.totals);
       setCategories(list.data.categories);
@@ -51,6 +54,7 @@ export default function ExpensesTab({ onAction }) {
         ...form,
         vendor_id: form.vendor_id || null,
         paid_on: form.paid_on || null,
+        asset_id: form.asset_id ? Number(form.asset_id) : undefined,
         amount: Number(form.amount)
       });
       setForm(BLANK);
@@ -130,6 +134,10 @@ export default function ExpensesTab({ onAction }) {
           <select value={form.vendor_id} onChange={set('vendor_id')} className="px-3 py-2 border border-slate-200 rounded-xl text-sm">
             <option value="">Payee not on the registry</option>
             {vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.name}</option>)}
+          </select>
+          <select value={form.asset_id} onChange={set('asset_id')} aria-label="Equipment this bill was for" className="px-3 py-2 border border-slate-200 rounded-xl text-sm">
+            <option value="">No equipment</option>
+            {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
           </select>
 
           <input value={form.payee_name} onChange={set('payee_name')} placeholder="Who was paid"

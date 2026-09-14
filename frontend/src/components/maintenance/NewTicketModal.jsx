@@ -8,15 +8,16 @@ const EMPTY = {
   location: '',
   title: '',
   description: '',
-  category: 'Plumbing',
-  priority: 'MEDIUM'
+  category: 'PLUMBING',
+  priority: 'MEDIUM',
+  asset_id: ''
 };
 
 // Common examples first: the lift, the pump and the hallway lights are what a
 // structural ticket system is actually for.
 const COMMON_PLACES = ['Lift A', 'Lift B', 'Stairwell', 'Terrace', 'Basement pump room', 'Car park', 'Main gate', 'Overhead tank'];
 
-export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
+export default function NewTicketModal({ isOpen, onClose, onSubmit, units, assets = [] }) {
   const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
   const fieldId = useId();
   const [formData, setFormData] = useState(EMPTY);
@@ -30,7 +31,8 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
     onSubmit({
       ...formData,
       unit_id: isCommon ? null : formData.unit_id,
-      location: isCommon ? formData.location : null
+      location: isCommon ? formData.location : null,
+      asset_id: formData.asset_id ? Number(formData.asset_id) : undefined
     });
     setFormData(EMPTY);
   };
@@ -129,6 +131,22 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
             />
           </div>
 
+          {assets.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`${fieldId}-asset`}>Equipment involved</label>
+              <select id={`${fieldId}-asset`}
+                value={formData.asset_id}
+                onChange={(e) => setFormData({ ...formData, asset_id: e.target.value })}
+                className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm"
+              >
+                <option value="">None, or not sure</option>
+                {assets.filter((asset) => asset.is_active).map((asset) => (
+                  <option key={asset.id} value={asset.id}>{asset.name}{asset.location ? ` (${asset.location})` : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor={`${fieldId}-category`}>Category</label>
@@ -137,11 +155,14 @@ export default function NewTicketModal({ isOpen, onClose, onSubmit, units }) {
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 className="w-full border border-slate-300 rounded-lg p-2.5 outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-sm"
               >
-                <option value="Plumbing">Plumbing</option>
-                <option value="Electrical">Electrical</option>
-                <option value="Structural">Structural</option>
-                <option value="Safety">Safety</option>
-                <option value="Elevator">Elevator</option>
+                {/* The API accepts exactly these. The old labels were title case and
+                    included two it has never known, so every admin ticket was refused. */}
+                <option value="PLUMBING">Plumbing</option>
+                <option value="ELECTRICAL">Electrical</option>
+                <option value="STRUCTURAL">Structural</option>
+                <option value="LIFT">Lift</option>
+                <option value="COMMON">Common area</option>
+                <option value="OTHER">Other</option>
               </select>
             </div>
             <div>

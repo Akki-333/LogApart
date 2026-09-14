@@ -9,26 +9,20 @@ export default function TicketKanban({ tickets, onUpdateStatus, onOpenTicket }) 
     { id: 'RESOLVED', title: 'Resolved', color: 'bg-emerald-50 border-emerald-200 text-emerald-800' }
   ];
 
-  // Helper to calculate SLA
-  const getSLA = (priority, createdAt, status) => {
-    if (status === 'RESOLVED') return null;
-    
-    let hoursAllowed = 48; // Default Medium/Low
-    if (priority === 'URGENT') hoursAllowed = 4;
-    else if (priority === 'HIGH') hoursAllowed = 24;
+  // The SLA comes from the API, which also escalates a breach to the admins, so
+  // the board and the escalation can never disagree about what counts as late.
+  const getSLA = (ticket) => {
+    if (ticket.sla_hours_left === null || ticket.sla_hours_left === undefined) return null;
 
-    const created = new Date(createdAt);
-    const now = new Date();
-    const diffHours = (now - created) / (1000 * 60 * 60);
-    const remaining = hoursAllowed - diffHours;
-
-    if (remaining < 0) {
-      return <div className="flex items-center text-xs font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded w-fit"><AlertCircle className="w-3 h-3 mr-1" /> SLA BREACHED</div>;
-    } else if (remaining < hoursAllowed * 0.2) { // Less than 20% time left
-      return <div className="flex items-center text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded w-fit"><Clock className="w-3 h-3 mr-1" /> {Math.ceil(remaining)}h left</div>;
+    if (ticket.sla_breached) {
+      return <div className="flex items-center text-xs font-bold text-rose-600 bg-rose-100 px-2 py-1 rounded w-fit"><AlertCircle className="w-3 h-3 mr-1" aria-hidden="true" /> SLA BREACHED</div>;
     }
-    
-    return <div className="flex items-center text-xs font-medium text-slate-500"><Clock className="w-3 h-3 mr-1" /> {Math.ceil(remaining)}h left</div>;
+
+    if (ticket.sla_hours_left < ticket.sla_hours * 0.2) {
+      return <div className="flex items-center text-xs font-bold text-amber-600 bg-amber-100 px-2 py-1 rounded w-fit"><Clock className="w-3 h-3 mr-1" aria-hidden="true" /> {Math.ceil(ticket.sla_hours_left)}h left</div>;
+    }
+
+    return <div className="flex items-center text-xs font-medium text-slate-500"><Clock className="w-3 h-3 mr-1" aria-hidden="true" /> {Math.ceil(ticket.sla_hours_left)}h left</div>;
   };
 
   const getPriorityBadge = (priority) => {
@@ -82,6 +76,9 @@ export default function TicketKanban({ tickets, onUpdateStatus, onOpenTicket }) 
                     
                     <h4 className="font-bold text-slate-800 text-sm mb-1">{ticket.title}</h4>
                     <p className="text-slate-500 text-xs line-clamp-2 mb-3">{ticket.description}</p>
+                    {ticket.asset_name && (
+                      <p className="text-[11px] font-semibold text-slate-500 -mt-2 mb-3">Asset: {ticket.asset_name}</p>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <button
@@ -103,7 +100,7 @@ export default function TicketKanban({ tickets, onUpdateStatus, onOpenTicket }) 
                     </div>
                     
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-                      {getSLA(ticket.priority, ticket.created_at, ticket.status)}
+                      {getSLA(ticket)}
                       
                       <select 
                         value={ticket.status}

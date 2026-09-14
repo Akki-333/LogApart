@@ -6,11 +6,14 @@ import TicketConversation from '../components/tickets/TicketConversation';
 import NewTicketModal from '../components/maintenance/NewTicketModal';
 import { Plus } from 'lucide-react';
 import useDialog from '../components/common/useDialog';
+import { useFeedback } from '../components/common/Feedback';
 
 export default function Maintenance() {
   const { token } = useContext(AuthContext);
   const [tickets, setTickets] = useState([]);
   const [units, setUnits] = useState([]); // Needed for the dropdown in modal
+  const [assets, setAssets] = useState([]);
+  const { toast } = useFeedback();
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openTicket, setOpenTicket] = useState(null);
@@ -19,6 +22,9 @@ export default function Maintenance() {
   useEffect(() => {
     fetchTickets();
     fetchUnitsForDropdown();
+    api.get('/api/assets')
+      .then((response) => setAssets(response.data.data))
+      .catch((error) => console.error('Failed to fetch assets', error));
   }, [token]);
 
   const fetchTickets = async () => {
@@ -55,7 +61,7 @@ export default function Maintenance() {
       // Refresh tickets
       fetchTickets();
     } catch (error) {
-      console.error('Failed to update ticket', error);
+      toast.error(error.response?.data?.message || 'Could not update that ticket.');
     }
   };
 
@@ -65,7 +71,9 @@ export default function Maintenance() {
       setIsModalOpen(false);
       fetchTickets();
     } catch (error) {
-      console.error('Failed to create ticket', error);
+      // This used to go only to the console, which is how a form sending
+      // categories the API refuses went unnoticed.
+      toast.error(error.response?.data?.message || 'Could not log that issue.');
     }
   };
 
@@ -129,6 +137,7 @@ export default function Maintenance() {
         onClose={() => setIsModalOpen(false)} 
         onSubmit={handleCreateTicket}
         units={units}
+        assets={assets}
       />
     </div>
   );

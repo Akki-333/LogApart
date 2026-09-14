@@ -6,6 +6,7 @@ import EditVisitorModal from '../components/security/EditVisitorModal';
 import PassLookup from '../components/security/PassLookup';
 import HelperCheckIn from '../components/security/HelperCheckIn';
 import ParcelDesk from '../components/security/ParcelDesk';
+import ShiftPanel from '../components/security/ShiftPanel';
 import { useFeedback } from '../components/common/Feedback';
 import { SkeletonRows } from '../components/common/Skeleton';
 import { downloadFile } from '../lib/download';
@@ -240,7 +241,8 @@ export default function Security({ readOnly = false }) {
       {/* 1. Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Security Gate Log</h1>
+          {/* The guard desk sits on a dark layout, where slate-900 text vanished. */}
+          <h1 className={`text-2xl font-black ${readOnly ? 'text-slate-900' : 'text-white'}`}>Security Gate Log</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {readOnly ? 'Live overview of building visitors and gate traffic' : 'Record and manage visitors, deliveries, and vehicles at the gate'}
           </p>
@@ -281,6 +283,8 @@ export default function Security({ readOnly = false }) {
           )}
         </div>
       </div>
+
+      {!readOnly && <ShiftPanel />}
 
       {/* Pre-approved visitor lookup. Guard desk only; admins are read-only. */}
       {!readOnly && (

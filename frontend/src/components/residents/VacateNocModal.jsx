@@ -3,6 +3,7 @@ import api from '../../lib/api';
 import { formatRupees, formatDay, formatPeriod } from '../../lib/money';
 import { X, FileCheck2, Printer, AlertCircle, CheckCircle2, User, Home, Calendar, Loader2 } from 'lucide-react';
 import useDialog from '../common/useDialog';
+import MoveOutChecklist from './MoveOutChecklist';
 
 export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit }) {
   const { dialogRef, dialogProps, titleId } = useDialog(isOpen, onClose);
@@ -175,6 +176,8 @@ export default function VacateNocModal({ isOpen, onClose, onConfirmVacate, unit 
                   <span className="text-slate-700">{unit.move_in_date ? new Date(unit.move_in_date).toLocaleDateString() : 'N/A'}</span>
                 </div>
               </div>
+
+              <MoveOutChecklist unitId={unit.unit_id} />
 
               {/* Move out date input */}
               <div>
