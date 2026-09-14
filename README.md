@@ -392,6 +392,24 @@ addressed to them rather than only the twenty most recent.
 
 ---
 
+## 🛠 Operations
+
+- **SLA escalation.** Every ticket carries its target (4 hours urgent, 24 high,
+  48 otherwise). A sweep every five minutes stamps a missed target and tells
+  every admin once, and the Books screen lists breaches for any date range.
+- **Asset register.** Lifts, pumps, the DG set and the rest, with a service
+  history built from the tickets and bills tagged to each.
+- **Shift handover.** Guards start and end shifts at the gate. A note left at
+  the end of a shift must be acknowledged before the next shift can start.
+- **Move-out checklist.** Once notice is recorded, the clearance certificate
+  waits until helper links, parking bays and live gate passes for the home are
+  closed off. Every step is read from those records.
+- **Reports.** Collections, defaulters, gate traffic, helper attendance, staff
+  pay and SLA breaches as CSV, each recorded in the activity log.
+
+The API reference is `docs/API.md`, generated from the routes with
+`npm run docs:api`. LogApart is released under the MIT licence.
+
 ## 🗺 Roadmap
 
 - **Phase 0 — Foundation (done).** Role enforcement in the API, schema and seed

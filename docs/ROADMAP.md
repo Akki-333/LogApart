@@ -194,7 +194,7 @@ another flat's vault, bookings or parcels. An SOS reaches the guard.
 
 ---
 
-## Phase 7 — Operations and reporting
+## Phase 7 — Operations and reporting (done, 2026-09-14, migration `014`)
 
 ### 7.1 SLA escalation that does something
 
@@ -225,6 +225,10 @@ breaches, each exportable as CSV for the committee.
 ---
 
 ## Engineering track, alongside the phases
+
+Status, 14 September 2026: pagination, a test runner and a deployment path are
+done (cursor paging, `node:test` and Vitest, production images with a compose
+file). Backups are still open.
 
 - **Pagination.** List endpoints use fixed `LIMIT` values. They need cursors
   before a few years of gate logs pile up.

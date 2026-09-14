@@ -1,9 +1,10 @@
 # LogApart full-stack audit — 13 September 2026
 
-> **All four phases of the remediation are complete.** Every HIGH and MEDIUM
-> finding except A-14 (no frontend tests) is resolved and re-verified, as are
-> eleven LOW findings. The creative improvements list is built. Still open:
-> A-14, A-17, A-18, A-28 and A-29. See "Status after Phase 4" below.
+> **Every finding in this audit is resolved.** The four remediation phases
+> closed all HIGH and MEDIUM findings except A-14, and eleven LOW ones; a final
+> pass on 14 September closed A-14, A-17, A-18, A-28 and A-29. The creative
+> improvements list is built, and every screen has since been walked in a real
+> browser. See "Status after Phase 4" below.
 
 Evidence-based. Every claim below was measured, executed or read from the
 repository on the date above. Where something could not be tested in this
@@ -963,11 +964,11 @@ all mandatory, and an origin pointing at localhost is refused outright.
 | A-11 | ~~MEDIUM~~ | Frontend | **RESOLVED.** Every portal and page loads on demand; the first download fell from 572 kB to 254 kB (146 to 86 kB gzipped) |
 | A-12 | ~~MEDIUM~~ | Data | **RESOLVED.** One seed, idempotent across three runs, one-time passwords throughout |
 | A-13 | ~~MEDIUM~~ | Testing | **RESOLVED.** 27 `node:test` cases, run by `npm test` and CI; a deliberately broken copy fails two |
-| A-14 | MEDIUM | Testing | No frontend tests of any kind |
+| A-14 | ~~MEDIUM~~ | Testing | **RESOLVED.** Vitest and Testing Library, 18 tests over money formatting, the confirm and reason dialogs, the focus trap and the gate entry form, run in CI |
 | A-15 | ~~MEDIUM~~ | Observability | **RESOLVED.** JSON request log with an id on every request, returned as `X-Request-Id` and as the 500 reference; `/api/health` and `/api/health/ready` |
 | A-16 | ~~LOW~~ | Security | **RESOLVED.** HS256 pinned when signing and verifying |
-| A-17 | LOW | Frontend | Three screens make sequential calls where one `Promise.all` would do |
-| A-18 | LOW | Frontend | No `AbortController`, so unmount mid-request leaves a pending setState |
+| A-17 | ~~LOW~~ | Frontend | **RESOLVED.** The dashboard, residents and gate desk load their data in one `Promise.all` |
+| A-18 | ~~LOW~~ | Frontend | **RESOLVED.** Those loads cancel through an `AbortController` when the screen goes, and a cancelled request is not reported as an error |
 | A-19 | ~~LOW~~ | Frontend | **RESOLVED.** A hidden tab does not poll, and refreshes as soon as it is shown |
 | A-20 | ~~LOW~~ | Database | **RESOLVED.** Migration `013` drops both roles (no account held one). `payments` was already dropped by `002`; only the baseline `schema.sql`, which is never edited, still creates it |
 | A-21 | ~~LOW~~ | Database | **RESOLVED.** Foreign key added in `013` after checking no row was orphaned |
@@ -977,8 +978,8 @@ all mandatory, and an origin pointing at localhost is refused outright.
 | A-25 | ~~LOW~~ | Code | **RESOLVED.** Six copies, in two shapes, replaced by `services/residency.js` |
 | A-26 | ~~LOW~~ | Code | **RESOLVED.** Split into runs, invoices, payments and collections plus shared helpers, largest 363 lines; the old file re-exports so no caller changed |
 | A-27 | ~~LOW~~ | Deps | **RESOLVED.** `npm audit` reports 0 in both packages; Vite 7 and react-router 7 |
-| A-28 | LOW | Docs | No LICENSE, API reference or deployment guide |
-| A-29 | LOW | API | Renaming `flatList` to `homeList` is an unversioned breaking change |
+| A-28 | ~~LOW~~ | Docs | **RESOLVED.** MIT licence; `docs/API.md` generated from the routes and checked in CI; the README covers running in containers |
+| A-29 | ~~LOW~~ | API | **RESOLVED.** The API has one client, changed in the same commit; the rename is recorded under Changes in `docs/API.md` |
 | A-30 | ~~LOW~~ | UX | **RESOLVED.** Every destructive action has gone through the confirm dialog since Phase 2, parking bays included |
 
 ---
